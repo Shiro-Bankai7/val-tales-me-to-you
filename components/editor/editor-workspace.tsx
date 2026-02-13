@@ -91,6 +91,17 @@ export function EditorWorkspace({
     }
   }, [pageIndex, pages.length]);
 
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saving) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [saving]);
+
   function setStickerForCurrentPage(characterId?: string) {
     if (!currentPage) return;
     updatePage(currentPage.id, { characterId });

@@ -12,11 +12,7 @@ export default async function PublicTalePage({ params }: { params: { slug: strin
   }
 
   return (
-    <div className="space-y-3 p-3 pb-5">
-      <Card className="space-y-1">
-        <p className="text-xs uppercase tracking-wide text-[#9b6f64]">Private Valentines Link</p>
-        <h1 className="text-lg font-semibold">A story made just for you</h1>
-      </Card>
+    <div className="min-h-screen">
       <StoryPlayer
         project={data.projects}
         narrationUrl={data.narration_url}

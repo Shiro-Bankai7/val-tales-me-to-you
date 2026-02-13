@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getTemplateById } from "@/lib/templates";
 import { applySmartLineBreaks, detectLikelyNames, highlightText } from "@/lib/format";
 import type { StoryPage, TemplateId } from "@/lib/types";
@@ -37,6 +37,12 @@ export function StoryPageCard({
 }) {
   const cardRef = useRef<HTMLElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [localLayout, setLocalLayout] = useState<{
+    x: number;
+    y: number;
+    size: number;
+  } | null>(null);
+
   const dragRef = useRef<{
     mode: "move" | "resize";
     startClientX: number;
@@ -46,61 +52,75 @@ export function StoryPageCard({
     originSize: number;
   } | null>(null);
 
-  const template = getTemplateById(templateId);
-  const names = page.highlightedNames?.length ? page.highlightedNames : detectLikelyNames(page.body);
-  const formatted = applySmartLineBreaks(page.body);
-  const html = highlightText(formatted, names).replaceAll("\n", "<br />");
-  const pageBackground = template.backgroundImage ?? template.previewImage;
+  const template = useMemo(() => getTemplateById(templateId), [templateId]);
+  const html = useMemo(() => {
+    const names = page.highlightedNames?.length ? page.highlightedNames : detectLikelyNames(page.body);
+    const formatted = applySmartLineBreaks(page.body);
+    return highlightText(formatted, names).replaceAll("\n", "<br />");
+  }, [page.body, page.highlightedNames]);
+
   const textColor = page.textColor ?? "#5d443d";
-  const overlay = editable
-    ? "linear-gradient(rgba(255,255,255,0.42), rgba(255,255,255,0.4))"
-    : "linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.82))";
 
-  function withAlpha(color: string, alpha: number) {
-    const hex = color.replace("#", "");
-    if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
-      return `rgba(248, 230, 225, ${alpha})`;
+  const backgroundStyle = useMemo(() => {
+    const pageBackground = template.backgroundImage ?? template.previewImage;
+    const overlay = editable
+      ? "linear-gradient(rgba(255,255,255,0.42), rgba(255,255,255,0.4))"
+      : "linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.82))";
+
+    function withAlpha(color: string, alpha: number) {
+      const hex = color.replace("#", "");
+      if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
+        return `rgba(248, 230, 225, ${alpha})`;
+      }
+      const red = parseInt(hex.slice(0, 2), 16);
+      const green = parseInt(hex.slice(2, 4), 16);
+      const blue = parseInt(hex.slice(4, 6), 16);
+      return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
     }
-    const red = parseInt(hex.slice(0, 2), 16);
-    const green = parseInt(hex.slice(2, 4), 16);
-    const blue = parseInt(hex.slice(4, 6), 16);
-    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-  }
 
-  const backgroundColorOverlay = page.bgColor
-    ? `linear-gradient(${withAlpha(page.bgColor, editable ? 0.64 : 0.58)}, ${withAlpha(page.bgColor, editable ? 0.64 : 0.58)})`
-    : "linear-gradient(rgba(255,255,255,0.01), rgba(255,255,255,0.01))";
+    const backgroundColorOverlay = page.bgColor
+      ? `linear-gradient(${withAlpha(page.bgColor, editable ? 0.64 : 0.58)}, ${withAlpha(page.bgColor, editable ? 0.64 : 0.58)})`
+      : "linear-gradient(rgba(255,255,255,0.01), rgba(255,255,255,0.01))";
 
-  const backgroundStyle = {
-    backgroundImage: `${overlay}, ${backgroundColorOverlay}, url('${pageBackground}')`,
-    backgroundSize: "cover, cover, cover",
-    backgroundPosition: "center, center, center",
-    color: textColor,
-    ["--vt-mark-color" as string]: withAlpha(page.bgColor ?? "#ff94b8", 0.36)
-  };
+    return {
+      backgroundImage: `${overlay}, ${backgroundColorOverlay}, url('${pageBackground}')`,
+      backgroundSize: "cover, cover, cover",
+      backgroundPosition: "center, center, center",
+      color: textColor,
+      ["--vt-mark-color" as string]: withAlpha(page.bgColor ?? "#ff94b8", 0.36)
+    };
+  }, [template, editable, page.bgColor, textColor]);
 
-  const fallbackStickerLayout = getDefaultStickerLayout(page.characterPosition ?? template.defaultCharacterPosition);
+  const fallbackStickerLayout = useMemo(
+    () => getDefaultStickerLayout(page.characterPosition ?? template.defaultCharacterPosition),
+    [page.characterPosition, template.defaultCharacterPosition]
+  );
+
   const hasCustomLayout =
     typeof page.stickerX === "number" || typeof page.stickerY === "number" || typeof page.stickerSize === "number";
 
-  const stickerStyle = {
-    left: `${clampStickerValue(page.stickerX ?? fallbackStickerLayout.x, 8, 92)}%`,
-    top: `${clampStickerValue(page.stickerY ?? fallbackStickerLayout.y, 8, 92)}%`,
-    width: `${clampStickerValue(page.stickerSize ?? fallbackStickerLayout.size, 14, 40)}%`,
-    height: `${clampStickerValue(page.stickerSize ?? fallbackStickerLayout.size, 14, 40)}%`,
-    transform: "translate(-50%, -50%)"
-  } as const;
+  const stickerStyle = useMemo(() => {
+    const active = localLayout ?? {
+      x: page.stickerX ?? fallbackStickerLayout.x,
+      y: page.stickerY ?? fallbackStickerLayout.y,
+      size: page.stickerSize ?? fallbackStickerLayout.size
+    };
 
-  function getCurrentLayout() {
     return {
+      left: `${clampStickerValue(active.x, 8, 92)}%`,
+      top: `${clampStickerValue(active.y, 8, 92)}%`,
+      width: `${clampStickerValue(active.size, 14, 40)}%`,
+      height: `${clampStickerValue(active.size, 14, 40)}%`,
+      transform: "translate(-50%, -50%)"
+    };
+  }, [localLayout, page.stickerX, page.stickerY, page.stickerSize, fallbackStickerLayout]);
+
+  function beginStickerDrag(mode: "move" | "resize", clientX: number, clientY: number) {
+    const current = {
       x: clampStickerValue(page.stickerX ?? fallbackStickerLayout.x, 8, 92),
       y: clampStickerValue(page.stickerY ?? fallbackStickerLayout.y, 8, 92),
       size: clampStickerValue(page.stickerSize ?? fallbackStickerLayout.size, 14, 40)
     };
-  }
-
-  function beginStickerDrag(mode: "move" | "resize", clientX: number, clientY: number) {
-    const current = getCurrentLayout();
     dragRef.current = {
       mode,
       startClientX: clientX,
@@ -110,6 +130,7 @@ export function StoryPageCard({
       originSize: current.size
     };
     setDragging(true);
+    setLocalLayout(current);
   }
 
   useEffect(() => {
@@ -125,25 +146,33 @@ export function StoryPageCard({
       const deltaYPercent = ((event.clientY - drag.startClientY) / rect.height) * 100;
 
       if (drag.mode === "move") {
-        onStickerLayoutChange({
-          stickerX: clampStickerValue(drag.originX + deltaXPercent, 8, 92),
-          stickerY: clampStickerValue(drag.originY + deltaYPercent, 8, 92),
-          stickerSize: drag.originSize
+        setLocalLayout({
+          x: clampStickerValue(drag.originX + deltaXPercent, 8, 92),
+          y: clampStickerValue(drag.originY + deltaYPercent, 8, 92),
+          size: drag.originSize
         });
         return;
       }
 
       const sizeDelta = (deltaXPercent + deltaYPercent) * 0.5;
-      onStickerLayoutChange({
-        stickerX: drag.originX,
-        stickerY: drag.originY,
-        stickerSize: clampStickerValue(drag.originSize + sizeDelta, 14, 40)
+      setLocalLayout({
+        x: drag.originX,
+        y: drag.originY,
+        size: clampStickerValue(drag.originSize + sizeDelta, 14, 40)
       });
     };
 
     const handlePointerUp = () => {
+      if (dragRef.current && localLayout) {
+        onStickerLayoutChange({
+          stickerX: localLayout.x,
+          stickerY: localLayout.y,
+          stickerSize: localLayout.size
+        });
+      }
       dragRef.current = null;
       setDragging(false);
+      setLocalLayout(null);
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -152,7 +181,7 @@ export function StoryPageCard({
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [dragging, editable, onStickerLayoutChange]);
+  }, [dragging, editable, onStickerLayoutChange, localLayout]);
 
   return (
     <article
