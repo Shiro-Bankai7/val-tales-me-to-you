@@ -19,6 +19,8 @@ export function CheckoutPanel({
   const referenceFromQuery =
     initialReference ?? searchParams.get("ref") ?? searchParams.get("reference");
   const [email, setEmail] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [quote, setQuote] = useState<ReturnType<typeof getCheckoutQuote> | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
@@ -86,6 +88,30 @@ export function CheckoutPanel({
     }
   }
 
+  async function applyCoupon() {
+    if (!projectId || !couponCode) return;
+    setApplyingCoupon(true);
+    setResult("");
+    try {
+      const response = await fetch("/api/payments/coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, code: couponCode })
+      });
+      const data = (await response.json()) as { publishedUrl?: string; error?: string };
+      if (response.ok && data.publishedUrl) {
+        setPublishedUrl(data.publishedUrl);
+        setResult(`Success! Your tale is published for free 💌: ${data.publishedUrl}`);
+      } else {
+        setResult(data.error ?? "Failed to apply coupon.");
+      }
+    } catch (error) {
+      setResult((error as Error).message);
+    } finally {
+      setApplyingCoupon(false);
+    }
+  }
+
   async function verifyPayment(reference: string) {
     setBusy(true);
     const response = await fetch(`/api/payments/verify?reference=${encodeURIComponent(reference)}`);
@@ -142,7 +168,29 @@ export function CheckoutPanel({
               )}
               <p className="mt-2 text-sm font-semibold">Total: {formatNaira(quote?.totalAmount ?? 1500)}</p>
             </div>
-            <Button disabled={busy || !email} onClick={() => void startCheckout()}>
+
+            <div className="space-y-2 pt-1">
+              <p className="text-[11px] font-semibold text-[#81625a]">Have a discount code?</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Code (e.g. SHIROI)"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  className="vt-input text-xs"
+                />
+                <Button
+                  variant="secondary"
+                  className="!min-h-0 h-auto w-auto px-4 py-2 text-xs"
+                  disabled={applyingCoupon || !couponCode || busy}
+                  onClick={() => void applyCoupon()}
+                >
+                  {applyingCoupon ? "..." : "Apply"}
+                </Button>
+              </div>
+            </div>
+
+            <Button disabled={busy || !email || applyingCoupon} onClick={() => void startCheckout()}>
               {busy ? "Please wait..." : `Pay ${formatNaira(quote?.totalAmount ?? 1500)}`}
             </Button>
           </>

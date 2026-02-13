@@ -59,10 +59,11 @@ export function StoryPlayer({
   const template = getTemplateById(project.template_id);
   const isDoorTemplate = project.template_id === "door-reveal";
   const pages = useMemo(() => {
+    const rawPages = Array.isArray(project.pages_json) ? project.pages_json : [];
     if (hiddenUnlocked) {
-      return project.pages_json;
+      return rawPages;
     }
-    return project.pages_json.filter((page) => !page.secret);
+    return rawPages.filter((page) => !page.secret);
   }, [hiddenUnlocked, project.pages_json]);
 
   const selectedCharacterById = useMemo(() => {
@@ -221,9 +222,9 @@ export function StoryPlayer({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={cn(mode === "public" ? "space-y-0" : "space-y-4")}>
       {!started ? (
-        <Card className="text-center">
+        <Card className={cn("text-center", mode === "public" && "m-3")}>
           <p className="text-sm text-[#7f6058]">Template interaction</p>
           {template.startInteractionImage ? (
             <img
@@ -314,8 +315,8 @@ export function StoryPlayer({
         </Card>
       ) : null}
 
-      {started ? (
-        <Card className="space-y-3">
+      {started && mode !== "public" ? (
+        <Card className="space-y-3 mx-2 mt-4">
           <div className="flex items-center justify-between text-sm">
             <span>
               Page {pages.length ? Math.min(index + 1, pages.length) : 0} / {pages.length}
@@ -360,8 +361,29 @@ export function StoryPlayer({
         </Card>
       ) : null}
 
+      {started && mode === "public" ? (
+        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 gap-2">
+          <button
+            onClick={toggleMusic}
+            className="h-10 rounded-full border border-white/40 bg-white/60 px-3 text-xs shadow-sm backdrop-blur-sm"
+            title={musicOn ? "Music On" : "Music Off"}
+          >
+            {musicOn ? "Music" : "Muted"}
+          </button>
+          {narrationUrl ? (
+            <button
+              onClick={toggleNarration}
+              className="h-10 rounded-full border border-white/40 bg-white/60 px-3 text-xs shadow-sm backdrop-blur-sm"
+              title={narrationOn ? "Narration On" : "Narration Off"}
+            >
+              {narrationOn ? "Narr" : "Muted"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {started && isLastPage ? (
-        <Card className="space-y-3">
+        <Card className={cn("space-y-3", mode === "public" ? "m-3 pb-20" : "")}>
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold">Reactable 💗</p>
             {project.is_premium ? (
@@ -429,3 +451,4 @@ export function StoryPlayer({
     </div>
   );
 }
+

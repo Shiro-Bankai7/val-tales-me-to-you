@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Valentines Tales",
-  description: "Create romantic mobile story presentations"
+  description: "Create romantic mobile story presentations",
+  icons: {
+    icon: "/icon.svg"
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -12,7 +14,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <main className="mobile-shell">{children}</main>
-        <Script src="/_vercel/insights/script.js" strategy="afterInteractive" />
       </body>
     </html>
   );

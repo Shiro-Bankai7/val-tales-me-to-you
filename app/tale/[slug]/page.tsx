@@ -11,12 +11,14 @@ export default async function PublicTalePage({ params }: { params: { slug: strin
   }
 
   return (
-    <StoryPlayer
-      project={data.projects}
-      narrationUrl={data.narration_url}
-      mode="public"
-      slug={params.slug}
-      exitHref="/"
-    />
+    <div className="min-h-screen">
+      <StoryPlayer
+        project={data.projects}
+        narrationUrl={data.narration_url}
+        mode="public"
+        slug={params.slug}
+        exitHref="/"
+      />
+    </div>
   );
 }

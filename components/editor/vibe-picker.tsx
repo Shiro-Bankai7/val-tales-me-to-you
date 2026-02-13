@@ -14,7 +14,7 @@ export function VibePicker({
   isPremium: boolean;
 }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="flex w-full max-w-full gap-2 overflow-x-auto pb-1">
       {vibes.map((vibe) => {
         return (
           <button
