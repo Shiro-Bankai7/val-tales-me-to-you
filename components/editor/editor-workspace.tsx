@@ -192,8 +192,8 @@ export function EditorWorkspace({
 
   return (
     <div className="h-[100dvh] overflow-hidden p-2 text-[#674a43]">
-      <div className="grid h-full grid-rows-[auto_1fr_auto_auto] gap-2">
-        <Card className="space-y-1">
+      <div className="grid h-full grid-rows-[auto_1fr_auto_auto] gap-2 min-w-0">
+        <Card className="space-y-1 min-w-0">
           <div className="flex items-center justify-between">
             <h1 className="text-sm font-semibold">Editor</h1>
             <p className="text-[11px] text-[#8a6a61]">{saving ? "Saving..." : status}</p>
@@ -209,7 +209,7 @@ export function EditorWorkspace({
                 <rect x="4" y="5" width="16" height="14" rx="2" />
                 <path d="M4 10h16" />
               </svg>
-              <span>Template</span>
+              <span className="whitespace-nowrap">Template</span>
             </button>
             <button
               type="button"
@@ -222,12 +222,12 @@ export function EditorWorkspace({
                 <circle cx="9" cy="9" r="1.5" />
                 <path d="m20 15-4-4-7 7" />
               </svg>
-              <span>Sticker</span>
+              <span className="whitespace-nowrap">Sticker</span>
             </button>
           </div>
         </Card>
 
-        <Card className="min-h-0 overflow-hidden">
+        <Card className="min-h-0 overflow-hidden min-w-0">
           {currentPage ? (
             <div className="h-full overflow-hidden">
               <StoryPageCard
@@ -249,7 +249,7 @@ export function EditorWorkspace({
           ) : null}
         </Card>
 
-        <Card className="space-y-2">
+        <Card className="space-y-2 min-w-0 overflow-hidden max-w-full">
           <div className="flex items-center justify-between text-xs">
             <span>
               Page {pages.length ? Math.min(pageIndex + 1, pages.length) : 0} / {pages.length}
@@ -332,11 +332,11 @@ export function EditorWorkspace({
           <VibePicker value={vibe} onChange={setVibe} isPremium={isPremium} />
         </Card>
 
-        <Card className="space-y-1.5">
+        <Card className="space-y-1.5 min-w-0">
           <div className="grid grid-cols-2 gap-1.5">
             <Link
               href={`/preview/${project.id}`}
-              className="flex items-center justify-center rounded-full border border-[#cda79b] bg-[#bf978c] px-3 py-2 text-[#fff8f4]"
+              className="flex items-center justify-center gap-1.5 rounded-full border border-[#cda79b] bg-[#bf978c] px-3 py-2 text-[#fff8f4]"
               title="Preview"
               aria-label="Preview"
             >
@@ -344,10 +344,11 @@ export function EditorWorkspace({
                 <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
+              <span className="text-xs font-semibold">Preview</span>
             </Link>
             <Link
               href={`/checkout?projectId=${project.id}`}
-              className="flex items-center justify-center rounded-full border border-[#d0afa5] bg-[#f3e5df] px-3 py-2 text-[#6f5049]"
+              className="flex items-center justify-center gap-1.5 rounded-full border border-[#d0afa5] bg-[#f3e5df] px-3 py-2 text-[#6f5049]"
               title="Checkout"
               aria-label="Checkout"
             >
@@ -355,6 +356,7 @@ export function EditorWorkspace({
                 <rect x="3" y="6" width="18" height="12" rx="2" />
                 <path d="M3 10h18" />
               </svg>
+              <span className="text-xs font-semibold">Checkout</span>
             </Link>
           </div>
 
@@ -362,7 +364,7 @@ export function EditorWorkspace({
             <div className="grid grid-cols-2 gap-1.5">
               <Link
                 href={`/tale/${exportedSlug}`}
-                className="flex items-center justify-center rounded-full border border-[#cda79b] bg-[#bf978c] px-3 py-2 text-[#fff8f4]"
+                className="flex items-center justify-center gap-1.5 rounded-full border border-[#cda79b] bg-[#bf978c] px-3 py-2 text-[#fff8f4]"
                 title="Open link"
                 aria-label="Open link"
               >
@@ -371,11 +373,12 @@ export function EditorWorkspace({
                   <path d="M15 3h6v6" />
                   <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
                 </svg>
+                <span className="text-xs font-semibold">Open</span>
               </Link>
               <button
                 type="button"
                 onClick={() => void copyPublishedLink()}
-                className="flex items-center justify-center rounded-full border border-[#d0afa5] bg-[#f3e5df] px-3 py-2 text-[#6f5049]"
+                className="flex items-center justify-center gap-1.5 rounded-full border border-[#d0afa5] bg-[#f3e5df] px-3 py-2 text-[#6f5049]"
                 title="Copy link"
                 aria-label="Copy link"
               >
@@ -383,6 +386,7 @@ export function EditorWorkspace({
                   <rect x="9" y="9" width="13" height="13" rx="2" />
                   <rect x="2" y="2" width="13" height="13" rx="2" />
                 </svg>
+                <span className="text-xs font-semibold">Copy</span>
               </button>
             </div>
           ) : (

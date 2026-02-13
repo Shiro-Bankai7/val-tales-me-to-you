@@ -68,7 +68,7 @@ export function CreateFlow() {
         </button>
       </Card>
 
-      <Card className="space-y-2">
+      <Card className="space-y-2 overflow-hidden max-w-full">
         <h2 className="text-sm font-semibold">2. Vibe music</h2>
         <VibePicker value={vibe} onChange={setVibe} isPremium={false} />
       </Card>

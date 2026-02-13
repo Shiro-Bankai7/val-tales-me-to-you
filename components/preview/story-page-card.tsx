@@ -208,6 +208,7 @@ export function StoryPageCard({
               }
             }}
             className={cn(editable && "cursor-grab active:cursor-grabbing", "h-full w-full")}
+            aria-label="Character sticker"
           >
             <img src={characterSrc} alt="Character sticker" className="h-full w-full object-contain" />
           </button>
@@ -221,6 +222,7 @@ export function StoryPageCard({
               }}
               className="absolute -bottom-2 -right-2 h-6 w-6 rounded-full border border-[#d7bab1] bg-[#fff5f1] text-[10px] text-[#7b5c53] shadow-sm"
               title="Resize sticker"
+              aria-label="Resize sticker"
             >
               ↔
             </button>
