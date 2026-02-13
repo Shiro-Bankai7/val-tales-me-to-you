@@ -61,12 +61,10 @@ export function StoryPageCard({
   }, [page.body, page.highlightedNames]);
 
   const textColor = page.textColor ?? "#5d443d";
+  const overlay = "linear-gradient(rgba(255,255,255,0), rgba(255,255,255,0))";
 
   const backgroundStyle = useMemo(() => {
     const pageBackground = template.backgroundImage ?? template.previewImage;
-    const overlay = editable
-      ? "linear-gradient(rgba(255,255,255,0.42), rgba(255,255,255,0.4))"
-      : "linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.82))";
 
     function withAlpha(color: string, alpha: number) {
       const hex = color.replace("#", "");
@@ -79,9 +77,18 @@ export function StoryPageCard({
       return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
     }
 
-    const backgroundColorOverlay = page.bgColor
-      ? `linear-gradient(${withAlpha(page.bgColor, editable ? 0.64 : 0.58)}, ${withAlpha(page.bgColor, editable ? 0.64 : 0.58)})`
-      : "linear-gradient(rgba(255,255,255,0.01), rgba(255,255,255,0.01))";
+    const normalizedBgColor = page.bgColor?.trim().toLowerCase();
+    const hasCustomBgColor = Boolean(
+      normalizedBgColor &&
+        normalizedBgColor !== "#fff" &&
+        normalizedBgColor !== "#ffffff" &&
+        normalizedBgColor !== "white"
+    );
+
+    const backgroundColorOverlay =
+      page.bgColor && hasCustomBgColor
+        ? `linear-gradient(${withAlpha(page.bgColor, editable ? 0.28 : 0.24)}, ${withAlpha(page.bgColor, editable ? 0.28 : 0.24)})`
+        : "linear-gradient(rgba(255,255,255,0), rgba(255,255,255,0))";
 
     return {
       backgroundImage: `${overlay}, ${backgroundColorOverlay}, url('${pageBackground}')`,
@@ -91,7 +98,7 @@ export function StoryPageCard({
       color: textColor,
       ["--vt-mark-color" as string]: withAlpha(page.bgColor ?? "#ff94b8", 0.36)
     };
-  }, [template, editable, page.bgColor, textColor]);
+  }, [template, editable, page.bgColor, textColor, overlay]);
 
   const fallbackStickerLayout = useMemo(
     () => getDefaultStickerLayout(page.characterPosition ?? template.defaultCharacterPosition),
@@ -205,10 +212,10 @@ export function StoryPageCard({
       style={backgroundStyle}
     >
       <div className="pointer-events-none absolute inset-0 select-none text-[#d8a9a7]/60">
-        <span className="absolute left-2 top-4 text-[11px]">❤</span>
-        <span className="absolute right-3 top-8 text-[13px]">♥</span>
-        <span className="absolute left-4 bottom-8 text-[10px]">❤</span>
-        <span className="absolute right-5 bottom-4 text-[12px]">♥</span>
+        <span className="absolute left-2 top-4 text-[11px]">*</span>
+        <span className="absolute right-3 top-8 text-[13px]">*</span>
+        <span className="absolute left-4 bottom-8 text-[10px]">*</span>
+        <span className="absolute right-5 bottom-4 text-[12px]">*</span>
       </div>
       {editable ? (
         <textarea
@@ -294,3 +301,4 @@ export function StoryPageCard({
     </article>
   );
 }
+

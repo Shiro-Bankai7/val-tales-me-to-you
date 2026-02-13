@@ -434,6 +434,7 @@ export function StoryPlayer({
 
       {selectedVibe ? (
         <audio
+          key={selectedVibe.id}
           ref={bgAudioRef}
           src={selectedVibe.trackUrl}
           autoPlay

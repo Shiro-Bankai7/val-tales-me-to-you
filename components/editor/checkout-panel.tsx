@@ -174,7 +174,7 @@ export function CheckoutPanel({
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Code (e.g. SHIROI)"
+                  placeholder="Discount code"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
                   className="vt-input text-xs"

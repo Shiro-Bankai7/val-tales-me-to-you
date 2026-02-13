@@ -68,6 +68,10 @@ function getLocalStore() {
   return globalObject.__valentinesLocalStore;
 }
 
+function shouldUseLocalStore() {
+  return !hasServerEnv() && process.env.NODE_ENV !== "production";
+}
+
 function toLocalStoreSnapshot(store: LocalStore): LocalStoreSnapshot {
   return {
     projects: Array.from(store.projects.entries()),
@@ -204,7 +208,7 @@ export async function createDraftProject(payload: {
   characterRefs?: string[];
   pages?: StoryPage[];
 }) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
     const project = createLocalDraftProject(payload);
     await persistLocalStore();
@@ -239,7 +243,7 @@ export async function createDraftProject(payload: {
 }
 
 export async function getProjectById(projectId: string) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
     return getLocalStore().projects.get(projectId) ?? null;
   }
@@ -256,7 +260,7 @@ export async function updateProjectById(
   projectId: string,
   updates: Partial<Pick<ProjectRecord, "template_id" | "vibe" | "pages_json" | "character_refs" | "is_premium">>
 ) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
     const project = updateLocalProject(projectId, updates);
     await persistLocalStore();
@@ -283,7 +287,7 @@ export async function updateProjectById(
 }
 
 export async function getPublishedByProject(projectId: string) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
     return getLocalStore().publishedByProjectId.get(projectId) ?? null;
   }
@@ -300,7 +304,7 @@ export async function getPublishedByProject(projectId: string) {
 }
 
 export async function createOrGetPublishedTale(projectId: string, isPremium = false) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
     const published = createLocalPublished(projectId, isPremium);
     await persistLocalStore();
@@ -345,7 +349,7 @@ export async function createOrGetPublishedTale(projectId: string, isPremium = fa
 }
 
 export async function getPublishedBySlug(slug: string) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = store.publishedBySlug.get(slug);
@@ -380,7 +384,7 @@ export async function addPurchaseLog(payload: {
   amount: number;
   currency: string;
 }) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
     getLocalStore().purchaseRefs.add(payload.providerRef);
     await persistLocalStore();
@@ -406,7 +410,7 @@ export async function markProjectPremium(projectId: string) {
 }
 
 export async function saveNarrationUrl(projectId: string, narrationUrl: string) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = createLocalPublished(projectId, true);
@@ -438,7 +442,7 @@ export async function saveNarrationUrl(projectId: string, narrationUrl: string) 
 }
 
 export async function addReaction(payload: ReactionPayload) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = store.publishedBySlug.get(payload.taleSlug);
@@ -486,7 +490,7 @@ export async function addReaction(payload: ReactionPayload) {
 }
 
 export async function getReactionSummary(slug: string) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = store.publishedBySlug.get(slug);
@@ -518,7 +522,8 @@ export async function getReactionSummary(slug: string) {
 }
 
 export async function getCouponUsageCount(code: string) {
-  if (!hasServerEnv()) {
+  if (shouldUseLocalStore()) {
+    await ensureLocalStoreReady();
     const store = getLocalStore();
     let count = 0;
     store.purchaseRefs.forEach((ref) => {
