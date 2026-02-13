@@ -398,6 +398,28 @@ export async function addReaction(payload: ReactionPayload) {
   return { ok: true };
 }
 
+export async function getDiscountUsageCount(code: string) {
+  if (!hasServerEnv()) return 0;
+  const supabase = createServiceSupabaseClient();
+  const { count, error } = await supabase
+    .from("purchases")
+    .select("*", { count: "exact", head: true })
+    .ilike("provider_ref", `discount_${code}_%`);
+
+  if (error) return 0;
+  return count ?? 0;
+}
+
+export async function recordDiscountUsage(code: string, type: PurchaseType) {
+  const ref = `discount_${code}_${nanoid(10)}`;
+  await addPurchaseLog({
+    type,
+    providerRef: ref,
+    amount: 0,
+    currency: "NGN"
+  });
+}
+
 export async function getReactionSummary(slug: string) {
   if (!hasServerEnv()) {
     const store = getLocalStore();

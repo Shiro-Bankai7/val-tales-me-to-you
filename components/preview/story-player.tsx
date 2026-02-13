@@ -42,7 +42,7 @@ export function StoryPlayer({
   const [timerProgress, setTimerProgress] = useState(0);
   const [musicOn, setMusicOn] = useState(true);
   const [narrationOn, setNarrationOn] = useState(false);
-  const [hiddenUnlocked, setHiddenUnlocked] = useState(false);
+  const [hiddenUnlocked, setHiddenUnlocked] = useState(mode === "preview");
   const [doorStage, setDoorStage] = useState<"door" | "card">("door");
   const [cluesUnlocked, setCluesUnlocked] = useState<Record<number, boolean>>({});
   const [reactableOpen, setReactableOpen] = useState(false);
@@ -51,7 +51,6 @@ export function StoryPlayer({
   const [replyText, setReplyText] = useState("");
   const bgAudioRef = useRef<HTMLAudioElement>(null);
   const narrationRef = useRef<HTMLAudioElement>(null);
-  const trackStartAppliedRef = useRef<string | null>(null);
 
   const template = getTemplateById(project.template_id);
   const isDoorTemplate = project.template_id === "door-reveal";
@@ -79,6 +78,24 @@ export function StoryPlayer({
       setIndex(Math.max(0, pages.length - 1));
     }
   }, [index, pages.length]);
+
+  useEffect(() => {
+    const audio = bgAudioRef.current;
+    if (!audio || !selectedVibe?.trackStartSeconds) return;
+
+    const applyStart = () => {
+      if (audio.currentTime < selectedVibe.trackStartSeconds!) {
+        audio.currentTime = selectedVibe.trackStartSeconds!;
+      }
+    };
+
+    if (audio.readyState >= 1) {
+      applyStart();
+    } else {
+      audio.addEventListener("loadedmetadata", applyStart);
+      return () => audio.removeEventListener("loadedmetadata", applyStart);
+    }
+  }, [selectedVibe]);
 
   useEffect(() => {
     if (!isDoorTemplate) {
@@ -147,7 +164,6 @@ export function StoryPlayer({
     setMusicOn(next);
     if (!bgAudioRef.current) return;
     if (next) {
-      applyTrackStartIfNeeded();
       void bgAudioRef.current.play();
       return;
     }
@@ -184,15 +200,6 @@ export function StoryPlayer({
     }
   }
 
-  function applyTrackStartIfNeeded() {
-    const audio = bgAudioRef.current;
-    if (!audio || !selectedVibe?.trackStartSeconds) return;
-    const key = `${selectedVibe.id}:${selectedVibe.trackStartSeconds}`;
-    if (trackStartAppliedRef.current === key) return;
-
-    audio.currentTime = selectedVibe.trackStartSeconds;
-    trackStartAppliedRef.current = key;
-  }
 
   return (
     <div className={cn(mode === "public" ? "space-y-0" : "space-y-4")}>
@@ -409,7 +416,6 @@ export function StoryPlayer({
           loop
           className="hidden"
           onCanPlay={() => {
-            applyTrackStartIfNeeded();
             if (musicOn) {
               void bgAudioRef.current?.play().catch(() => {});
             }

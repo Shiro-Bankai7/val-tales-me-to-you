@@ -19,6 +19,7 @@ export function CheckoutPanel({
   const referenceFromQuery =
     initialReference ?? searchParams.get("ref") ?? searchParams.get("reference");
   const [email, setEmail] = useState("");
+  const [discountCode, setDiscountCode] = useState("");
   const [quote, setQuote] = useState<ReturnType<typeof getCheckoutQuote> | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
@@ -72,13 +73,31 @@ export function CheckoutPanel({
         body: JSON.stringify({
           projectId,
           email,
-          type: quote?.purchaseType ?? "export"
+          type: quote?.purchaseType ?? "export",
+          discountCode
         })
       });
-      const data = (await response.json()) as { checkoutUrl?: string; error?: string };
-      if (!response.ok || !data.checkoutUrl) {
+      const data = (await response.json()) as {
+        checkoutUrl?: string;
+        success?: boolean;
+        publishedUrl?: string;
+        error?: string;
+      };
+      if (!response.ok) {
         throw new Error(data.error ?? "Failed to initialize payment.");
       }
+
+      if (data.success && data.publishedUrl) {
+        setPublishedUrl(data.publishedUrl);
+        setResult(`Success! Your private link is ready: ${data.publishedUrl}`);
+        setBusy(false);
+        return;
+      }
+
+      if (!data.checkoutUrl) {
+        throw new Error("Checkout URL missing.");
+      }
+
       window.location.href = data.checkoutUrl;
     } catch (error) {
       setResult((error as Error).message);
@@ -142,8 +161,15 @@ export function CheckoutPanel({
               )}
               <p className="mt-2 text-sm font-semibold">Total: {formatNaira(quote?.totalAmount ?? 1500)}</p>
             </div>
+            <input
+              type="text"
+              placeholder="Discount code (optional)"
+              value={discountCode}
+              onChange={(event) => setDiscountCode(event.target.value)}
+              className="vt-input text-sm"
+            />
             <Button disabled={busy || !email} onClick={() => void startCheckout()}>
-              {busy ? "Please wait..." : `Pay ${formatNaira(quote?.totalAmount ?? 1500)}`}
+              {busy ? "Please wait..." : `Pay ${formatNaira(discountCode.toUpperCase() === "SHIROI" ? 0 : (quote?.totalAmount ?? 1500))}`}
             </Button>
           </>
         ) : (
