@@ -28,9 +28,9 @@ export function VibePicker({
                 : "border-[#d4b7ad] bg-[#f5e8e3] text-[#6f5049]"
             )}
           >
-            <span className="mr-1">♪</span>
+            <span className="mr-1">Music</span>
             {vibe.label}
-            {vibe.premium ? <span className="ml-1">🔒</span> : null}
+            {vibe.premium ? <span className="ml-1">[Premium]</span> : null}
           </button>
         );
       })}

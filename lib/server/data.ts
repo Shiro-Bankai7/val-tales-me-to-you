@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
+import { readFile, writeFile } from "fs/promises";
+import path from "path";
 import { hasServerEnv } from "@/lib/env";
-import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import type {
   ProjectRecord,
   PublishedTaleRecord,
@@ -23,8 +24,34 @@ type GlobalWithLocalStore = typeof globalThis & {
   __valentinesLocalStore?: LocalStore;
 };
 
+type LocalStoreSnapshot = {
+  projects: Array<[string, ProjectRecord]>;
+  publishedByProjectId: Array<[string, PublishedTaleRecord]>;
+  publishedBySlug: Array<[string, PublishedTaleRecord]>;
+  reactionsByPublishedId: Array<
+    [string, Array<{ reaction: string; reply_text?: string; created_at: string }>]
+  >;
+  purchaseRefs: string[];
+};
+
+const LOCAL_STORE_PATH = path.join(process.cwd(), ".val-tales-local-store.json");
+let localStoreLoadPromise: Promise<void> | null = null;
+let supabaseFactoryPromise: Promise<() => unknown> | null = null;
+
 function now() {
   return new Date().toISOString();
+}
+
+async function getServiceSupabaseClient() {
+  if (!supabaseFactoryPromise) {
+    supabaseFactoryPromise = import("@/lib/supabase/server").then(
+      (module) => module.createServiceSupabaseClient as () => unknown
+    );
+  }
+  const createClient = await supabaseFactoryPromise;
+  return createClient() as ReturnType<
+    (typeof import("@/lib/supabase/server"))["createServiceSupabaseClient"]
+  >;
 }
 
 function getLocalStore() {
@@ -39,6 +66,54 @@ function getLocalStore() {
     };
   }
   return globalObject.__valentinesLocalStore;
+}
+
+function toLocalStoreSnapshot(store: LocalStore): LocalStoreSnapshot {
+  return {
+    projects: Array.from(store.projects.entries()),
+    publishedByProjectId: Array.from(store.publishedByProjectId.entries()),
+    publishedBySlug: Array.from(store.publishedBySlug.entries()),
+    reactionsByPublishedId: Array.from(store.reactionsByPublishedId.entries()),
+    purchaseRefs: Array.from(store.purchaseRefs.values())
+  };
+}
+
+async function ensureLocalStoreReady() {
+  if (localStoreLoadPromise) {
+    return localStoreLoadPromise;
+  }
+
+  localStoreLoadPromise = (async () => {
+    const store = getLocalStore();
+    try {
+      const raw = await readFile(LOCAL_STORE_PATH, "utf8");
+      const parsed = JSON.parse(raw) as Partial<LocalStoreSnapshot>;
+
+      store.projects = new Map(parsed.projects ?? []);
+      store.publishedByProjectId = new Map(parsed.publishedByProjectId ?? []);
+      store.publishedBySlug = new Map(parsed.publishedBySlug ?? []);
+      store.reactionsByPublishedId = new Map(parsed.reactionsByPublishedId ?? []);
+      store.purchaseRefs = new Set(parsed.purchaseRefs ?? []);
+    } catch (error) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code !== "ENOENT") {
+        console.warn("[val-tales] Failed to read local store:", nodeError.message);
+      }
+    }
+  })();
+
+  return localStoreLoadPromise;
+}
+
+async function persistLocalStore() {
+  const store = getLocalStore();
+  const snapshot = toLocalStoreSnapshot(store);
+  try {
+    await writeFile(LOCAL_STORE_PATH, JSON.stringify(snapshot, null, 2), "utf8");
+  } catch (error) {
+    const nodeError = error as NodeJS.ErrnoException;
+    console.warn("[val-tales] Failed to persist local store:", nodeError.message);
+  }
 }
 
 function createLocalDraftProject(payload: {
@@ -130,10 +205,13 @@ export async function createDraftProject(payload: {
   pages?: StoryPage[];
 }) {
   if (!hasServerEnv()) {
-    return createLocalDraftProject(payload);
+    await ensureLocalStoreReady();
+    const project = createLocalDraftProject(payload);
+    await persistLocalStore();
+    return project;
   }
 
-  const supabase = createServiceSupabaseClient();
+  const supabase = await getServiceSupabaseClient();
   const insertPayload = {
     template_id: payload.templateId,
     vibe: payload.vibe,
@@ -162,10 +240,11 @@ export async function createDraftProject(payload: {
 
 export async function getProjectById(projectId: string) {
   if (!hasServerEnv()) {
+    await ensureLocalStoreReady();
     return getLocalStore().projects.get(projectId) ?? null;
   }
 
-  const supabase = createServiceSupabaseClient();
+  const supabase = await getServiceSupabaseClient();
   const { data, error } = await supabase.from("projects").select("*").eq("id", projectId).single();
   if (error) {
     return null;
@@ -178,10 +257,13 @@ export async function updateProjectById(
   updates: Partial<Pick<ProjectRecord, "template_id" | "vibe" | "pages_json" | "character_refs" | "is_premium">>
 ) {
   if (!hasServerEnv()) {
-    return updateLocalProject(projectId, updates);
+    await ensureLocalStoreReady();
+    const project = updateLocalProject(projectId, updates);
+    await persistLocalStore();
+    return project;
   }
 
-  const supabase = createServiceSupabaseClient();
+  const supabase = await getServiceSupabaseClient();
   const updatePayload = Object.fromEntries(
     Object.entries({
       ...updates,
@@ -202,10 +284,11 @@ export async function updateProjectById(
 
 export async function getPublishedByProject(projectId: string) {
   if (!hasServerEnv()) {
+    await ensureLocalStoreReady();
     return getLocalStore().publishedByProjectId.get(projectId) ?? null;
   }
 
-  const supabase = createServiceSupabaseClient();
+  const supabase = await getServiceSupabaseClient();
   const { data } = await supabase
     .from("published_tales")
     .select("*")
@@ -218,13 +301,16 @@ export async function getPublishedByProject(projectId: string) {
 
 export async function createOrGetPublishedTale(projectId: string, isPremium = false) {
   if (!hasServerEnv()) {
-    return createLocalPublished(projectId, isPremium);
+    await ensureLocalStoreReady();
+    const published = createLocalPublished(projectId, isPremium);
+    await persistLocalStore();
+    return published;
   }
 
   const existing = await getPublishedByProject(projectId);
   if (existing) {
     if (isPremium && !existing.is_premium) {
-      const supabase = createServiceSupabaseClient();
+      const supabase = await getServiceSupabaseClient();
       const { data, error } = await supabase
         .from("published_tales")
         .update({ is_premium: true })
@@ -239,7 +325,7 @@ export async function createOrGetPublishedTale(projectId: string, isPremium = fa
     return existing;
   }
 
-  const supabase = createServiceSupabaseClient();
+  const supabase = await getServiceSupabaseClient();
   const slug = nanoid(14);
   const { data, error } = await supabase
     .from("published_tales")
@@ -260,6 +346,7 @@ export async function createOrGetPublishedTale(projectId: string, isPremium = fa
 
 export async function getPublishedBySlug(slug: string) {
   if (!hasServerEnv()) {
+    await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = store.publishedBySlug.get(slug);
     if (!published) {
@@ -275,7 +362,7 @@ export async function getPublishedBySlug(slug: string) {
     } as PublishedTaleRecord & { projects: ProjectRecord };
   }
 
-  const supabase = createServiceSupabaseClient();
+  const supabase = await getServiceSupabaseClient();
   const { data, error } = await supabase
     .from("published_tales")
     .select("*, projects(*)")
@@ -294,11 +381,13 @@ export async function addPurchaseLog(payload: {
   currency: string;
 }) {
   if (!hasServerEnv()) {
+    await ensureLocalStoreReady();
     getLocalStore().purchaseRefs.add(payload.providerRef);
+    await persistLocalStore();
     return;
   }
 
-  const supabase = createServiceSupabaseClient();
+  const supabase = await getServiceSupabaseClient();
   const { error } = await supabase.from("purchases").insert({
     owner_id: null,
     type: payload.type,
@@ -318,6 +407,7 @@ export async function markProjectPremium(projectId: string) {
 
 export async function saveNarrationUrl(projectId: string, narrationUrl: string) {
   if (!hasServerEnv()) {
+    await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = createLocalPublished(projectId, true);
     const nextPublished: PublishedTaleRecord = {
@@ -328,10 +418,11 @@ export async function saveNarrationUrl(projectId: string, narrationUrl: string) 
     store.publishedByProjectId.set(projectId, nextPublished);
     store.publishedBySlug.set(nextPublished.slug, nextPublished);
     await markProjectPremium(projectId);
+    await persistLocalStore();
     return;
   }
 
-  const supabase = createServiceSupabaseClient();
+  const supabase = await getServiceSupabaseClient();
   const published = await createOrGetPublishedTale(projectId, true);
   const { error } = await supabase
     .from("published_tales")
@@ -348,13 +439,11 @@ export async function saveNarrationUrl(projectId: string, narrationUrl: string) 
 
 export async function addReaction(payload: ReactionPayload) {
   if (!hasServerEnv()) {
+    await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = store.publishedBySlug.get(payload.taleSlug);
     if (!published) {
       throw new Error("Tale not found.");
-    }
-    if (!published.is_premium) {
-      throw new Error("Reactions are premium.");
     }
     const existing = store.reactionsByPublishedId.get(published.id) ?? [];
     store.reactionsByPublishedId.set(
@@ -368,21 +457,19 @@ export async function addReaction(payload: ReactionPayload) {
         ...existing
       ].slice(0, 50)
     );
+    await persistLocalStore();
     return { ok: true };
   }
 
-  const supabase = createServiceSupabaseClient();
+  const supabase = await getServiceSupabaseClient();
   const { data: published, error: publishedError } = await supabase
     .from("published_tales")
-    .select("id, project_id, is_premium")
+    .select("id")
     .eq("slug", payload.taleSlug)
     .single();
 
   if (publishedError || !published) {
     throw new Error("Tale not found.");
-  }
-  if (!published.is_premium) {
-    throw new Error("Reactions are premium.");
   }
 
   const { error } = await supabase.from("reactions").insert({
@@ -400,6 +487,7 @@ export async function addReaction(payload: ReactionPayload) {
 
 export async function getReactionSummary(slug: string) {
   if (!hasServerEnv()) {
+    await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = store.publishedBySlug.get(slug);
     if (!published) {
@@ -408,7 +496,7 @@ export async function getReactionSummary(slug: string) {
     return store.reactionsByPublishedId.get(published.id) ?? [];
   }
 
-  const supabase = createServiceSupabaseClient();
+  const supabase = await getServiceSupabaseClient();
   const { data: published } = await supabase
     .from("published_tales")
     .select("id")
@@ -428,3 +516,4 @@ export async function getReactionSummary(slug: string) {
 
   return data ?? [];
 }
+

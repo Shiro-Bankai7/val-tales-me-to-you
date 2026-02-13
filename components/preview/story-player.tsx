@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { type MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { characterPacks, getTemplateById, vibes } from "@/lib/templates";
 import type { ProjectRecord } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -30,12 +31,14 @@ export function StoryPlayer({
   project,
   narrationUrl,
   mode,
-  slug
+  slug,
+  exitHref
 }: {
   project: ProjectRecord;
   narrationUrl?: string | null;
   mode: "preview" | "public";
   slug?: string;
+  exitHref?: string;
 }) {
   const [started, setStarted] = useState(mode === "preview");
   const [index, setIndex] = useState(0);
@@ -70,6 +73,7 @@ export function StoryPlayer({
   const selectedVibe = vibes.find((vibe) => vibe.id === project.vibe);
   const currentPage = pages[index];
   const isLastPage = pages.length > 0 && index >= pages.length - 1;
+  const isPreviewMode = mode === "preview";
   const isDoorCardStage = !isDoorTemplate || doorStage === "card";
   const currentClueUnlocked = !isDoorTemplate || Boolean(cluesUnlocked[index]);
   const canAdvance = pages.length > 0 && !isLastPage && isDoorCardStage && currentClueUnlocked;
@@ -130,6 +134,28 @@ export function StoryPlayer({
   function goNextPage() {
     if (!canAdvance) return;
     setIndex((value) => Math.min(pages.length - 1, value + 1));
+  }
+
+  function handleCardSurfaceClick(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!isDoorCardStage) return;
+
+    if (isDoorTemplate && !currentClueUnlocked) {
+      unlockCurrentClue();
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const tapX = event.clientX - rect.left;
+    const sideZoneWidth = rect.width * 0.26;
+
+    if (tapX <= sideZoneWidth) {
+      goPreviousPage();
+      return;
+    }
+
+    if (tapX >= rect.width - sideZoneWidth) {
+      goNextPage();
+    }
   }
 
   function openDoor() {
@@ -236,11 +262,7 @@ export function StoryPlayer({
             <div
               key={`${currentPage.id}-${index}`}
               className={templateTransitionClass[project.template_id]}
-              onClick={() => {
-                if (isDoorTemplate && !currentClueUnlocked) {
-                  unlockCurrentClue();
-                }
-              }}
+              onClick={handleCardSurfaceClick}
             >
               <StoryPageCard
                 page={currentPage}
@@ -269,20 +291,6 @@ export function StoryPlayer({
 
           {isDoorCardStage ? (
             <>
-              <button
-                type="button"
-                onClick={goPreviousPage}
-                disabled={index === 0 || !pages.length}
-                className="absolute left-0 top-0 h-full w-[26%] disabled:opacity-40"
-                aria-label="Previous page"
-              />
-              <button
-                type="button"
-                onClick={goNextPage}
-                disabled={!canAdvance}
-                className="absolute right-0 top-0 h-full w-[26%] disabled:opacity-40"
-                aria-label="Next page"
-              />
               <div className="pointer-events-none absolute right-2 top-2">
                 <div
                   className="relative h-10 w-10 rounded-full border border-[#dfc3b9]"
@@ -326,6 +334,28 @@ export function StoryPlayer({
             <Button variant="secondary" disabled={!narrationUrl} onClick={toggleNarration}>
               {narrationOn ? "Narration On" : "Narration Off"}
             </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      {started && isPreviewMode ? (
+        <Card className="space-y-2">
+          <p className="text-xs text-[#87675f]">Preview mode</p>
+          <div className={cn("grid gap-2", exitHref ? "grid-cols-2" : "grid-cols-1")}>
+            {exitHref ? (
+              <Link
+                href={exitHref}
+                className="touch-btn rounded-full border border-[#d2b5ab] bg-[#f3e5df] px-4 py-2.5 text-center text-sm font-semibold text-[#6a4b44] transition active:scale-[0.99]"
+              >
+                Back to Editor
+              </Link>
+            ) : null}
+            <Link
+              href={`/checkout?projectId=${project.id}`}
+              className="touch-btn rounded-full border border-[#cda79b] bg-[#bf978c] px-4 py-2.5 text-center text-sm font-semibold text-[#fff8f4] transition active:scale-[0.99]"
+            >
+              Publish
+            </Link>
           </div>
         </Card>
       ) : null}

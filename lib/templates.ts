@@ -1,4 +1,4 @@
-import type { CharacterPack, TemplateDefinition, TemplateId, VibeTrack } from "./types";
+import type { CharacterPack, TemplateDefinition, TemplateId, VibeId, VibeTrack } from "./types";
 
 export const templates: TemplateDefinition[] = [
   {
@@ -11,7 +11,7 @@ export const templates: TemplateDefinition[] = [
     previewImage: "/templates/papy1.jpg",
     backgroundImage: "/templates/papy4.jpg",
     startInteractionLabel: "Open the book",
-    startInteractionIcon: "📖",
+    startInteractionIcon: "Book",
     startInteractionImage: "/templates/papy1.jpg"
   },
   {
@@ -22,9 +22,9 @@ export const templates: TemplateDefinition[] = [
     bgClass: "bg-white",
     defaultCharacterPosition: "bottom-left",
     previewImage: "/templates/letter2.jpg",
-    backgroundImage: "/templates/letter1.jpg",
+    backgroundImage: "/templates/letter2.jpg",
     startInteractionLabel: "Open envelope",
-    startInteractionIcon: "💌",
+    startInteractionIcon: "Letter",
     startInteractionImage: "/templates/letter2.jpg"
   },
   {
@@ -37,7 +37,7 @@ export const templates: TemplateDefinition[] = [
     previewImage: "/templates/phone1.jpg",
     backgroundImage: "/templates/chat2.jpg",
     startInteractionLabel: "Tech transform",
-    startInteractionIcon: "📱",
+    startInteractionIcon: "Phone",
     startInteractionImage: "/templates/phone1.jpg"
   },
   {
@@ -50,7 +50,7 @@ export const templates: TemplateDefinition[] = [
     previewImage: "/templates/door1.jpg",
     backgroundImage: "/templates/door3.jpg",
     startInteractionLabel: "Enter through the door",
-    startInteractionIcon: "🚪",
+    startInteractionIcon: "Door",
     startInteractionImage: "/templates/door1.jpg",
     premium: true
   }
@@ -60,14 +60,12 @@ export const vibes: VibeTrack[] = [
   {
     id: "romantic",
     label: "Romantic",
-    trackUrl: "/music/romantic.mp3",
-    premium: true
+    trackUrl: "/music/romantic.mp3"
   },
   {
     id: "soft",
     label: "Soft",
-    trackUrl: "/music/soft.mp3",
-    premium: true
+    trackUrl: "/music/soft.mp3"
   },
   {
     id: "rain-dance",
@@ -79,8 +77,7 @@ export const vibes: VibeTrack[] = [
   {
     id: "playful",
     label: "Playful",
-    trackUrl: "/music/playful.mp3",
-    premium: true
+    trackUrl: "/music/playful.mp3"
   },
   {
     id: "heartbreak",
@@ -93,6 +90,42 @@ export const vibes: VibeTrack[] = [
     label: "Nostalgia",
     trackUrl: "/music/nostalgia.mp3",
     premium: true
+  },
+  {
+    id: "african-queen",
+    label: "African Queen",
+    trackUrl: "/2Face - African Queen [Official Video] - Official2Baba (youtube).mp3",
+    premium: true
+  },
+  {
+    id: "dave-raindance",
+    label: "Dave Raindance",
+    trackUrl: "/Dave - Raindance (ft. Tems) - Santan Dave (youtube).mp3",
+    premium: true
+  },
+  {
+    id: "davido-assurance",
+    label: "Davido Assurance",
+    trackUrl: "/Davido - Assurance (Official Video) - DavidoVEVO (youtube).mp3",
+    premium: true
+  },
+  {
+    id: "fola-you",
+    label: "FOLA You",
+    trackUrl: "/FOLA - you (Official Video) - FolapondisVEVO (youtube).mp3",
+    premium: true
+  },
+  {
+    id: "tems-me-u",
+    label: "Tems Me and U",
+    trackUrl: "/Tems - Me & U (Official Video) - TemsVEVO (youtube).mp3",
+    premium: true
+  },
+  {
+    id: "wizkid-true-love",
+    label: "Wizkid True Love",
+    trackUrl: "/Wizkid - True Love (Audio) ft. Tay Iwar, Projexx - WizkidVEVO (youtube).mp3",
+    premium: true
   }
 ];
 
@@ -100,4 +133,8 @@ export const characterPacks: CharacterPack[] = [];
 
 export function getTemplateById(templateId: TemplateId) {
   return templates.find((template) => template.id === templateId) ?? templates[0];
+}
+
+export function getVibeById(vibeId: VibeId) {
+  return vibes.find((vibe) => vibe.id === vibeId) ?? vibes[0];
 }

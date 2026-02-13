@@ -6,13 +6,7 @@ export type TemplateId =
   | "phone-texts"
   | "door-reveal";
 
-export type VibeId =
-  | "romantic"
-  | "soft"
-  | "rain-dance"
-  | "playful"
-  | "heartbreak"
-  | "nostalgia";
+export type VibeId = string;
 
 export type PurchaseType = "export" | "premium";
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEditorStore } from "@/lib/store/editor-store";
 import type { ProjectRecord, StoryPage } from "@/lib/types";
 import { TemplatePicker } from "@/components/editor/template-picker";
-import { VibePicker } from "@/components/editor/vibe-picker";
 import { CharacterPicker } from "@/components/editor/character-picker";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,13 @@ import { detectLikelyNames } from "@/lib/format";
 import { StoryPageCard } from "@/components/preview/story-page-card";
 import { FREE_PAGE_LIMIT, MAX_PAGE_LIMIT, getCheckoutQuote } from "@/lib/premium";
 import { formatNaira } from "@/lib/utils";
+import { vibes } from "@/lib/templates";
+
+type ProjectSavePayload = {
+  templateId: ProjectRecord["template_id"];
+  vibe: ProjectRecord["vibe"];
+  pages: StoryPage[];
+};
 
 export function EditorWorkspace({
   project,
@@ -22,6 +29,7 @@ export function EditorWorkspace({
   project: ProjectRecord;
   exportedSlug?: string | null;
 }) {
+  const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("Draft synced");
   const [narrationStatus, setNarrationStatus] = useState("");
@@ -31,6 +39,14 @@ export function EditorWorkspace({
   const [openStickerModal, setOpenStickerModal] = useState(false);
   const [openBgColorModal, setOpenBgColorModal] = useState(false);
   const [openTextColorModal, setOpenTextColorModal] = useState(false);
+  const [openVibeModal, setOpenVibeModal] = useState(false);
+  const [navigatingTo, setNavigatingTo] = useState<"preview" | "checkout" | null>(null);
+  const latestPayloadRef = useRef<ProjectSavePayload | null>(null);
+  const lastSavedPayloadRef = useRef<string>("");
+  const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveInFlightRef = useRef(false);
+  const saveQueuedRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const {
     templateId,
@@ -48,6 +64,7 @@ export function EditorWorkspace({
   const pageLimit = MAX_PAGE_LIMIT;
   const canAddPage = pages.length < pageLimit;
   const currentPage = pages[pageIndex] ?? pages[0];
+  const selectedVibe = useMemo(() => vibes.find((item) => item.id === vibe) ?? vibes[0], [vibe]);
   const selectedCharacterId = useMemo(() => currentPage?.characterId, [currentPage]);
   const quote = useMemo(
     () =>
@@ -55,9 +72,143 @@ export function EditorWorkspace({
         template_id: templateId,
         vibe,
         pages_json: pages
-      }),
+    }),
     [pages, templateId, vibe]
   );
+
+  const serializePayload = useCallback((payload: ProjectSavePayload) => JSON.stringify(payload), []);
+
+  const saveProject = useCallback(
+    async (payload: ProjectSavePayload, keepalive = false) => {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive
+      });
+
+      if (response.ok) {
+        return;
+      }
+
+      let message = "Save failed";
+      try {
+        const data = (await response.json()) as { error?: string };
+        if (data.error) {
+          message = data.error;
+        }
+      } catch {
+        // Best-effort parse.
+      }
+      throw new Error(message);
+    },
+    [project.id]
+  );
+
+  const drainSaveQueue = useCallback(async () => {
+    if (saveInFlightRef.current) return;
+
+    const payload = latestPayloadRef.current;
+    if (!payload) return;
+
+    const payloadJson = serializePayload(payload);
+    if (payloadJson === lastSavedPayloadRef.current) {
+      saveQueuedRef.current = false;
+      if (mountedRef.current) {
+        setSaving(false);
+        setStatus("Draft synced");
+      }
+      return;
+    }
+
+    saveQueuedRef.current = false;
+    saveInFlightRef.current = true;
+
+    if (mountedRef.current) {
+      setSaving(true);
+      setStatus("Saving...");
+    }
+
+    try {
+      await saveProject(payload);
+      lastSavedPayloadRef.current = payloadJson;
+      if (mountedRef.current) {
+        setStatus("Draft synced");
+      }
+    } catch (error) {
+      if (mountedRef.current) {
+        setStatus((error as Error).message || "Save failed");
+      }
+    } finally {
+      saveInFlightRef.current = false;
+      const latestPayload = latestPayloadRef.current;
+      const latestJson = latestPayload ? serializePayload(latestPayload) : "";
+      if (latestPayload && latestJson !== lastSavedPayloadRef.current) {
+        saveQueuedRef.current = true;
+        void drainSaveQueue();
+      } else if (mountedRef.current) {
+        setSaving(false);
+      }
+    }
+  }, [saveProject, serializePayload]);
+
+  const flushDraftSave = useCallback(async () => {
+    if (saveDebounceRef.current) {
+      clearTimeout(saveDebounceRef.current);
+      saveDebounceRef.current = null;
+    }
+
+    saveQueuedRef.current = true;
+    void drainSaveQueue();
+
+    const maxWaitMs = 7000;
+    const waitSliceMs = 50;
+    let waitedMs = 0;
+    while (waitedMs < maxWaitMs) {
+      const latestPayload = latestPayloadRef.current;
+      const latestJson = latestPayload ? serializePayload(latestPayload) : "";
+      const isSynced = !latestPayload || latestJson === lastSavedPayloadRef.current;
+      if (!saveInFlightRef.current && !saveQueuedRef.current && isSynced) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, waitSliceMs));
+      waitedMs += waitSliceMs;
+      if (!saveInFlightRef.current && !saveQueuedRef.current && !isSynced) {
+        saveQueuedRef.current = true;
+        void drainSaveQueue();
+      }
+    }
+    throw new Error("Unable to sync draft right now. Please retry in a moment.");
+  }, [drainSaveQueue, serializePayload]);
+
+  const navigateWithSave = useCallback(
+    async (destination: string, target: "preview" | "checkout") => {
+      setNavigatingTo(target);
+      try {
+        await flushDraftSave();
+        router.push(destination);
+      } catch (error) {
+        if (mountedRef.current) {
+          setStatus((error as Error).message || "Save failed");
+        }
+      } finally {
+        if (mountedRef.current) {
+          setNavigatingTo(null);
+        }
+      }
+    },
+    [flushDraftSave, router]
+  );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (saveDebounceRef.current) {
+        clearTimeout(saveDebounceRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     hydrateProject({
@@ -67,23 +218,63 @@ export function EditorWorkspace({
       pages: project.pages_json,
       isPremium: project.is_premium
     });
+    const payload: ProjectSavePayload = {
+      templateId: project.template_id,
+      vibe: project.vibe,
+      pages: project.pages_json
+    };
+    latestPayloadRef.current = payload;
+    lastSavedPayloadRef.current = serializePayload(payload);
+    saveQueuedRef.current = false;
+    saveInFlightRef.current = false;
+    if (saveDebounceRef.current) {
+      clearTimeout(saveDebounceRef.current);
+      saveDebounceRef.current = null;
+    }
+    setSaving(false);
+    setStatus("Draft synced");
     setPageIndex(0);
-  }, [hydrateProject, project]);
+  }, [hydrateProject, project, serializePayload]);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setSaving(true);
-      fetch(`/api/projects/${project.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId, vibe, pages })
-      })
-        .then(() => setStatus("Draft synced"))
-        .catch(() => setStatus("Save failed"))
-        .finally(() => setSaving(false));
-    }, 700);
-    return () => clearTimeout(timeout);
-  }, [project.id, templateId, vibe, pages]);
+    const payload: ProjectSavePayload = { templateId, vibe, pages };
+    latestPayloadRef.current = payload;
+    const payloadJson = serializePayload(payload);
+
+    if (payloadJson !== lastSavedPayloadRef.current) {
+      setStatus("Unsaved changes");
+    }
+
+    if (saveDebounceRef.current) {
+      clearTimeout(saveDebounceRef.current);
+    }
+
+    saveDebounceRef.current = setTimeout(() => {
+      saveQueuedRef.current = true;
+      void drainSaveQueue();
+    }, 450);
+
+    return () => {
+      if (saveDebounceRef.current) {
+        clearTimeout(saveDebounceRef.current);
+        saveDebounceRef.current = null;
+      }
+    };
+  }, [templateId, vibe, pages, drainSaveQueue, serializePayload]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const payload = latestPayloadRef.current;
+      if (!payload) return;
+      if (serializePayload(payload) === lastSavedPayloadRef.current) return;
+      void saveProject(payload, true);
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [saveProject, serializePayload]);
 
   useEffect(() => {
     if (pageIndex > pages.length - 1) {
@@ -93,16 +284,44 @@ export function EditorWorkspace({
 
   function setStickerForCurrentPage(characterId?: string) {
     if (!currentPage) return;
+    if ((currentPage.characterId ?? undefined) === characterId) return;
     updatePage(currentPage.id, { characterId });
+  }
+
+  function areStringArraysEqual(left?: string[], right?: string[]) {
+    const leftSafe = left ?? [];
+    const rightSafe = right ?? [];
+    if (leftSafe.length !== rightSafe.length) return false;
+    for (let i = 0; i < leftSafe.length; i += 1) {
+      if (leftSafe[i] !== rightSafe[i]) return false;
+    }
+    return true;
   }
 
   function updateCurrentPage(updates: Partial<StoryPage>) {
     if (!currentPage) return;
     const nextBody = updates.body ?? currentPage.body;
-    updatePage(currentPage.id, {
+    const nextHighlightedNames =
+      updates.body !== undefined ? detectLikelyNames(nextBody) : currentPage.highlightedNames;
+
+    const nextPage: Partial<StoryPage> = {
       ...updates,
-      highlightedNames: detectLikelyNames(nextBody)
-    });
+      highlightedNames: nextHighlightedNames
+    };
+
+    const unchanged =
+      (nextPage.body ?? currentPage.body) === currentPage.body &&
+      (nextPage.bgColor ?? currentPage.bgColor) === currentPage.bgColor &&
+      (nextPage.textColor ?? currentPage.textColor) === currentPage.textColor &&
+      (nextPage.characterId ?? currentPage.characterId) === currentPage.characterId &&
+      (nextPage.stickerX ?? currentPage.stickerX) === currentPage.stickerX &&
+      (nextPage.stickerY ?? currentPage.stickerY) === currentPage.stickerY &&
+      (nextPage.stickerSize ?? currentPage.stickerSize) === currentPage.stickerSize &&
+      areStringArraysEqual(nextPage.highlightedNames, currentPage.highlightedNames);
+
+    if (unchanged) return;
+
+    updatePage(currentPage.id, nextPage);
   }
 
   function handleAddPage() {
@@ -198,7 +417,7 @@ export function EditorWorkspace({
             <h1 className="text-sm font-semibold">Editor</h1>
             <p className="text-[11px] text-[#8a6a61]">{saving ? "Saving..." : status}</p>
           </div>
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
             <button
               type="button"
               onClick={() => setOpenTemplateModal(true)}
@@ -223,6 +442,19 @@ export function EditorWorkspace({
                 <path d="m20 15-4-4-7 7" />
               </svg>
               <span>Sticker</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpenVibeModal(true)}
+              className="flex min-w-0 items-center justify-center gap-1 rounded-full border border-[#d4b7ad] bg-[#f5e8e3] px-2 py-1.5 text-xs"
+              title="Choose vibe music"
+            >
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18V6l12-2v12" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+              <span className="truncate">Audio</span>
             </button>
           </div>
         </Card>
@@ -329,13 +561,15 @@ export function EditorWorkspace({
           <p className="text-[11px] text-[#84645c]">
             Free up to {FREE_PAGE_LIMIT} pages. Current export total: {formatNaira(quote.totalAmount)}.
           </p>
-          <VibePicker value={vibe} onChange={setVibe} isPremium={isPremium} />
+          <p className="text-[11px] text-[#84645c]">Vibe: {selectedVibe.label}</p>
         </Card>
 
         <Card className="space-y-1.5">
           <div className="grid grid-cols-2 gap-1.5">
-            <Link
-              href={`/preview/${project.id}`}
+            <button
+              type="button"
+              disabled={navigatingTo !== null || saving}
+              onClick={() => void navigateWithSave(`/preview/${project.id}`, "preview")}
               className="flex items-center justify-center rounded-full border border-[#cda79b] bg-[#bf978c] px-3 py-2 text-[#fff8f4]"
               title="Preview"
               aria-label="Preview"
@@ -344,9 +578,11 @@ export function EditorWorkspace({
                 <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
-            </Link>
-            <Link
-              href={`/checkout?projectId=${project.id}`}
+            </button>
+            <button
+              type="button"
+              disabled={navigatingTo !== null || saving}
+              onClick={() => void navigateWithSave(`/checkout?projectId=${project.id}`, "checkout")}
               className="flex items-center justify-center rounded-full border border-[#d0afa5] bg-[#f3e5df] px-3 py-2 text-[#6f5049]"
               title="Checkout"
               aria-label="Checkout"
@@ -355,7 +591,7 @@ export function EditorWorkspace({
                 <rect x="3" y="6" width="18" height="12" rx="2" />
                 <path d="M3 10h18" />
               </svg>
-            </Link>
+            </button>
           </div>
 
           {exportedSlug ? (
@@ -426,37 +662,84 @@ export function EditorWorkspace({
       </Modal>
 
       <Modal open={openBgColorModal} title="Background color" onClose={() => setOpenBgColorModal(false)}>
-        <div className="grid grid-cols-5 gap-2">
-          {palette.map((color) => (
-            <button
-              key={color}
-              type="button"
-              title={color}
-              onClick={() => {
-                updateCurrentPage({ bgColor: color });
-                setOpenBgColorModal(false);
-              }}
-              className="h-10 w-full rounded-full border border-[#d6b9af]"
-              style={{ backgroundColor: color }}
-            />
-          ))}
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              updateCurrentPage({ bgColor: undefined });
+              setOpenBgColorModal(false);
+            }}
+            className="w-full rounded-full border border-[#d2b5ab] bg-[#f3e5df] px-3 py-2 text-xs text-[#6a4b44]"
+          >
+            Use template background
+          </button>
+          <div className="grid grid-cols-5 gap-2">
+            {palette.map((color) => (
+              <button
+                key={color}
+                type="button"
+                title={color}
+                onClick={() => {
+                  updateCurrentPage({ bgColor: color });
+                  setOpenBgColorModal(false);
+                }}
+                className="h-10 w-full rounded-full border border-[#d6b9af]"
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
         </div>
       </Modal>
 
       <Modal open={openTextColorModal} title="Text color" onClose={() => setOpenTextColorModal(false)}>
-        <div className="grid grid-cols-5 gap-2">
-          {textPalette.map((color) => (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              updateCurrentPage({ textColor: undefined });
+              setOpenTextColorModal(false);
+            }}
+            className="w-full rounded-full border border-[#d2b5ab] bg-[#f3e5df] px-3 py-2 text-xs text-[#6a4b44]"
+          >
+            Use default text color
+          </button>
+          <div className="grid grid-cols-5 gap-2">
+            {textPalette.map((color) => (
+              <button
+                key={color}
+                type="button"
+                title={color}
+                onClick={() => {
+                  updateCurrentPage({ textColor: color });
+                  setOpenTextColorModal(false);
+                }}
+                className="h-10 w-full rounded-full border border-[#d6b9af]"
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={openVibeModal} title="Choose vibe music" onClose={() => setOpenVibeModal(false)}>
+        <div className="space-y-2">
+          {vibes.map((item) => (
             <button
-              key={color}
+              key={item.id}
               type="button"
-              title={color}
               onClick={() => {
-                updateCurrentPage({ textColor: color });
-                setOpenTextColorModal(false);
+                setVibe(item.id);
+                setOpenVibeModal(false);
               }}
-              className="h-10 w-full rounded-full border border-[#d6b9af]"
-              style={{ backgroundColor: color }}
-            />
+              className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs ${
+                vibe === item.id
+                  ? "border-[#c79e91] bg-[#bf978c] text-[#fff8f4]"
+                  : "border-[#d4b7ad] bg-[#f5e8e3] text-[#6f5049]"
+              }`}
+            >
+              <span>{item.label}</span>
+              <span>{item.premium ? "[Premium]" : "Included"}</span>
+            </button>
           ))}
         </div>
       </Modal>

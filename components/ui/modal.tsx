@@ -20,11 +20,16 @@ export function Modal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-2">
-      <button type="button" onClick={onClose} className="absolute inset-0" aria-label="Close modal" />
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-2">
+      <div
+        className="absolute inset-0 bg-black/35"
+        onClick={onClose}
+        aria-label="Close modal backdrop"
+        role="presentation"
+      />
       <div
         className={cn(
-          "relative w-full max-w-[430px] rounded-t-[24px] border border-[#d7bbb1] bg-[#f6ece8] p-3",
+          "relative z-10 w-full max-w-[430px] rounded-t-[24px] border border-[#d7bbb1] bg-[#f6ece8] p-3",
           className
         )}
       >

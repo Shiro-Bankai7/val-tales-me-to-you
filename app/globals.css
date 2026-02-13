@@ -90,6 +90,18 @@ body {
   padding: 0 0.2em;
 }
 
+.vt-story-page {
+  background: transparent !important;
+  background-color: transparent !important;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.vt-story-page::placeholder {
+  color: #6f5049;
+  opacity: 0.85;
+}
+
 .vt-enter-book {
   animation: vtBookOpen 420ms ease both;
   transform-origin: left center;
