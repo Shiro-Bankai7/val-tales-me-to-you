@@ -213,7 +213,7 @@ export function EditorWorkspace({
             <button
               type="button"
               onClick={() => setOpenTemplateModal(true)}
-              className="flex items-center justify-center gap-1 rounded-full border border-[#d4b7ad] bg-[#f5e8e3] px-2 py-1.5 text-xs"
+              className="flex items-center justify-center gap-1 rounded-full border border-[#d4b7ad] bg-[#f5e8e3] px-2 py-1.5 text-xs transition-all active:scale-95"
               title="Choose template"
             >
               <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -225,7 +225,7 @@ export function EditorWorkspace({
             <button
               type="button"
               onClick={() => setOpenStickerModal(true)}
-              className="flex items-center justify-center gap-1 rounded-full border border-[#d4b7ad] bg-[#f5e8e3] px-2 py-1.5 text-xs"
+              className="flex items-center justify-center gap-1 rounded-full border border-[#d4b7ad] bg-[#f5e8e3] px-2 py-1.5 text-xs transition-all active:scale-95"
               title="Choose sticker"
             >
               <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -274,7 +274,7 @@ export function EditorWorkspace({
               type="button"
               disabled={pageIndex === 0}
               onClick={() => setPageIndex((value) => Math.max(0, value - 1))}
-              className="h-7 rounded-full border border-[#d2b5ab] bg-[#f3e5df] text-[11px] text-[#6a4b44] disabled:opacity-40"
+              className="h-7 rounded-full border border-[#d2b5ab] bg-[#f3e5df] text-[11px] text-[#6a4b44] transition-all active:scale-95 disabled:opacity-40"
               title="Previous page"
               aria-label="Previous page"
             >
@@ -284,7 +284,7 @@ export function EditorWorkspace({
               type="button"
               disabled={pageIndex >= pages.length - 1}
               onClick={() => setPageIndex((value) => Math.min(pages.length - 1, value + 1))}
-              className="h-7 rounded-full border border-[#d2b5ab] bg-[#f3e5df] text-[11px] text-[#6a4b44] disabled:opacity-40"
+              className="h-7 rounded-full border border-[#d2b5ab] bg-[#f3e5df] text-[11px] text-[#6a4b44] transition-all active:scale-95 disabled:opacity-40"
               title="Next page"
               aria-label="Next page"
             >
@@ -294,7 +294,7 @@ export function EditorWorkspace({
               type="button"
               disabled={!canAddPage}
               onClick={handleAddPage}
-              className="h-7 rounded-full border border-[#d2b5ab] bg-[#f3e5df] text-[11px] text-[#6a4b44] disabled:opacity-40"
+              className="h-7 rounded-full border border-[#d2b5ab] bg-[#f3e5df] text-[11px] text-[#6a4b44] transition-all active:scale-95 disabled:opacity-40"
               title="Add page"
               aria-label="Add page"
             >
@@ -304,7 +304,7 @@ export function EditorWorkspace({
               type="button"
               disabled={pages.length <= 1}
               onClick={handleDeleteCurrentPage}
-              className="h-7 rounded-full border border-[#d2b5ab] bg-[#f3e5df] text-[11px] text-[#6a4b44] disabled:opacity-40"
+              className="h-7 rounded-full border border-[#d2b5ab] bg-[#f3e5df] text-[11px] text-[#6a4b44] transition-all active:scale-95 disabled:opacity-40"
               title="Delete page"
               aria-label="Delete page"
             >
@@ -347,7 +347,7 @@ export function EditorWorkspace({
           <div className="grid grid-cols-2 gap-1.5">
             <Link
               href={`/preview/${project.id}`}
-              className="flex items-center justify-center gap-1.5 rounded-full border border-[#cda79b] bg-[#bf978c] px-3 py-2 text-[#fff8f4]"
+              className="flex items-center justify-center gap-1.5 rounded-full border border-[#cda79b] bg-[#bf978c] px-3 py-2 text-[#fff8f4] transition-all active:scale-95"
               title="Preview"
               aria-label="Preview"
             >
@@ -359,7 +359,7 @@ export function EditorWorkspace({
             </Link>
             <Link
               href={`/checkout?projectId=${project.id}`}
-              className="flex items-center justify-center gap-1.5 rounded-full border border-[#d0afa5] bg-[#f3e5df] px-3 py-2 text-[#6f5049]"
+              className="flex items-center justify-center gap-1.5 rounded-full border border-[#d0afa5] bg-[#f3e5df] px-3 py-2 text-[#6f5049] transition-all active:scale-95"
               title="Checkout"
               aria-label="Checkout"
             >
