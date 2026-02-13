@@ -195,9 +195,9 @@ export function StoryPlayer({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={cn(mode === "public" ? "space-y-0" : "space-y-4")}>
       {!started ? (
-        <Card className="text-center">
+        <Card className={cn("text-center", mode === "public" && "m-3")}>
           <p className="text-sm text-[#7f6058]">Template interaction</p>
           {template.startInteractionImage ? (
             <img
@@ -306,8 +306,8 @@ export function StoryPlayer({
         </Card>
       ) : null}
 
-      {started ? (
-        <Card className="space-y-3">
+      {started && mode !== "public" ? (
+        <Card className="space-y-3 mx-2 mt-4">
           <div className="flex items-center justify-between text-sm">
             <span>
               Page {pages.length ? Math.min(index + 1, pages.length) : 0} / {pages.length}
@@ -330,8 +330,29 @@ export function StoryPlayer({
         </Card>
       ) : null}
 
+      {started && mode === "public" ? (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-2">
+          <button
+            onClick={toggleMusic}
+            className="h-10 w-10 rounded-full bg-white/60 backdrop-blur-sm border border-white/40 shadow-sm flex items-center justify-center text-lg"
+            title={musicOn ? "Music On" : "Music Off"}
+          >
+            {musicOn ? "🎵" : "🔇"}
+          </button>
+          {narrationUrl && (
+            <button
+              onClick={toggleNarration}
+              className="h-10 w-10 rounded-full bg-white/60 backdrop-blur-sm border border-white/40 shadow-sm flex items-center justify-center text-lg"
+              title={narrationOn ? "Narration On" : "Narration Off"}
+            >
+              {narrationOn ? "🗣" : "🔇"}
+            </button>
+          )}
+        </div>
+      ) : null}
+
       {started && isLastPage ? (
-        <Card className="space-y-3">
+        <Card className={cn("space-y-3", mode === "public" ? "m-3 pb-20" : "")}>
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold">Reactable 💗</p>
             {project.is_premium ? (
