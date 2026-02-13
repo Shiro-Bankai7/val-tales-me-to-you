@@ -5,7 +5,7 @@ import { getTemplateById } from "@/lib/templates";
 import { applySmartLineBreaks, detectLikelyNames, highlightText } from "@/lib/format";
 import type { StoryPage, TemplateId } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { clampStickerValue, getDefaultStickerLayout } from "@/lib/sticker-layout";
+import { getDefaultStickerLayout } from "@/lib/sticker-layout";
 
 const positionMap: Record<string, string> = {
   "bottom-right": "bottom-3 right-2",
@@ -54,8 +54,9 @@ export function StoryPageCard({
 
   const template = useMemo(() => getTemplateById(templateId), [templateId]);
   const html = useMemo(() => {
-    const names = page.highlightedNames?.length ? page.highlightedNames : detectLikelyNames(page.body);
-    const formatted = applySmartLineBreaks(page.body);
+    const body = page.body ?? "";
+    const names = page.highlightedNames?.length ? page.highlightedNames : detectLikelyNames(body);
+    const formatted = applySmartLineBreaks(body);
     return highlightText(formatted, names).replaceAll("\n", "<br />");
   }, [page.body, page.highlightedNames]);
 
@@ -107,19 +108,19 @@ export function StoryPageCard({
     };
 
     return {
-      left: `${clampStickerValue(active.x, 8, 92)}%`,
-      top: `${clampStickerValue(active.y, 8, 92)}%`,
-      width: `${clampStickerValue(active.size, 14, 40)}%`,
-      height: `${clampStickerValue(active.size, 14, 40)}%`,
+      left: `${active.x}%`,
+      top: `${active.y}%`,
+      width: `${active.size}%`,
+      height: `${active.size}%`,
       transform: "translate(-50%, -50%)"
     };
   }, [localLayout, page.stickerX, page.stickerY, page.stickerSize, fallbackStickerLayout]);
 
   function beginStickerDrag(mode: "move" | "resize", clientX: number, clientY: number) {
     const current = {
-      x: clampStickerValue(page.stickerX ?? fallbackStickerLayout.x, 8, 92),
-      y: clampStickerValue(page.stickerY ?? fallbackStickerLayout.y, 8, 92),
-      size: clampStickerValue(page.stickerSize ?? fallbackStickerLayout.size, 14, 40)
+      x: page.stickerX ?? fallbackStickerLayout.x,
+      y: page.stickerY ?? fallbackStickerLayout.y,
+      size: page.stickerSize ?? fallbackStickerLayout.size
     };
     dragRef.current = {
       mode,
@@ -147,8 +148,8 @@ export function StoryPageCard({
 
       if (drag.mode === "move") {
         setLocalLayout({
-          x: clampStickerValue(drag.originX + deltaXPercent, 8, 92),
-          y: clampStickerValue(drag.originY + deltaYPercent, 8, 92),
+          x: drag.originX + deltaXPercent,
+          y: drag.originY + deltaYPercent,
           size: drag.originSize
         });
         return;
@@ -158,7 +159,7 @@ export function StoryPageCard({
       setLocalLayout({
         x: drag.originX,
         y: drag.originY,
-        size: clampStickerValue(drag.originSize + sizeDelta, 14, 40)
+        size: Math.max(5, drag.originSize + sizeDelta)
       });
     };
 
@@ -236,7 +237,10 @@ export function StoryPageCard({
                 onCharacterTap?.();
               }
             }}
-            className={cn(editable && "cursor-grab active:cursor-grabbing", "h-full w-full")}
+            className={cn(
+              editable && "cursor-grab active:cursor-grabbing",
+              "h-full w-full transition-all active:scale-95"
+            )}
             aria-label="Character sticker"
           >
             <img src={characterSrc} alt="Character sticker" className="h-full w-full object-contain" />
@@ -249,7 +253,7 @@ export function StoryPageCard({
                 event.stopPropagation();
                 beginStickerDrag("resize", event.clientX, event.clientY);
               }}
-              className="absolute -bottom-2 -right-2 h-6 w-6 rounded-full border border-[#d7bab1] bg-[#fff5f1] text-[10px] text-[#7b5c53] shadow-sm"
+              className="absolute -bottom-2 -right-2 h-6 w-6 rounded-full border border-[#d7bab1] bg-[#fff5f1] text-[10px] text-[#7b5c53] shadow-sm transition-all active:scale-125"
               title="Resize sticker"
               aria-label="Resize sticker"
             >

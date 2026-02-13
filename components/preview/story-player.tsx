@@ -56,11 +56,19 @@ export function StoryPlayer({
   const template = getTemplateById(project.template_id);
   const isDoorTemplate = project.template_id === "door-reveal";
   const pages = useMemo(() => {
-    const rawPages = Array.isArray(project.pages_json) ? project.pages_json : [];
-    if (hiddenUnlocked) {
-      return rawPages;
+    let rawPages = project.pages_json;
+    if (typeof rawPages === "string") {
+      try {
+        rawPages = JSON.parse(rawPages);
+      } catch (e) {
+        rawPages = [];
+      }
     }
-    return rawPages.filter((page) => !page.secret);
+    const finalPages = Array.isArray(rawPages) ? rawPages : [];
+    if (hiddenUnlocked) {
+      return finalPages;
+    }
+    return finalPages.filter((page) => !page.secret);
   }, [hiddenUnlocked, project.pages_json]);
 
   const selectedCharacterById = useMemo(() => {
