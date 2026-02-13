@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="110" r="58" fill="#F2D8C4"/>
+  <circle cx="64" cy="72" r="18" fill="#F2D8C4"/>
+  <circle cx="136" cy="72" r="18" fill="#F2D8C4"/>
+  <circle cx="84" cy="110" r="6" fill="#2F2434"/>
+  <circle cx="116" cy="110" r="6" fill="#2F2434"/>
+  <ellipse cx="100" cy="124" rx="10" ry="8" fill="#C28B67"/>
+  <path d="M88 140C94 146 106 146 112 140" stroke="#2F2434" stroke-width="4" stroke-linecap="round"/>
+  <path d="M102 76C102 65 111 56 122 56C130 56 136 60 140 68C144 60 150 56 158 56C169 56 178 65 178 76C178 96 155 108 140 120C125 108 102 96 102 76Z" fill="#FF739F"/>
+</svg>
+

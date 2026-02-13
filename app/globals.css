@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: "Trebuchet MS", "Avenir Next", Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  background: #efe2dd;
+  color: #5f433d;
+  min-height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.mobile-shell {
+  width: min(100vw, 430px);
+  margin: 0 auto;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 18%, #f7efec 0%, #f2e7e3 45%, #eadad5 100%);
+  border-left: 1px solid #ddc7c0;
+  border-right: 1px solid #ddc7c0;
+  position: relative;
+  overflow: hidden;
+}
+
+.mobile-shell::before {
+  content: "❤  ♥  ❤  ♥";
+  position: absolute;
+  left: 8px;
+  top: 14%;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 10px;
+  color: rgba(217, 150, 164, 0.42);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.mobile-shell::after {
+  content: "♥  ❤  ♥  ❤";
+  position: absolute;
+  right: 8px;
+  top: 20%;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 10px;
+  color: rgba(204, 140, 155, 0.36);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.touch-btn {
+  min-height: 46px;
+  min-width: 46px;
+}
+
+.vt-input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid #d8bdb3;
+  background: #fbf3ef;
+  color: #5f433d;
+  padding: 10px 12px;
+}
+
+.vt-input::placeholder {
+  color: #94746c;
+}
+
+.vt-chip {
+  border-radius: 999px;
+  border: 1px solid #d2b5ab;
+  background: #f3e5df;
+  color: #6e4f48;
+}
+
+.vt-story-page mark {
+  background: var(--vt-mark-color, rgba(255, 150, 183, 0.35));
+  color: inherit;
+  border-radius: 999px;
+  padding: 0 0.2em;
+}
+
+.vt-enter-book {
+  animation: vtBookOpen 420ms ease both;
+  transform-origin: left center;
+}
+
+.vt-enter-card {
+  animation: vtCardOpen 380ms ease both;
+}
+
+.vt-enter-tech {
+  animation: vtTechTransform 360ms ease both;
+}
+
+.vt-enter-door {
+  animation: vtDoorEnter 440ms ease both;
+  transform-origin: right center;
+}
+
+@keyframes vtBookOpen {
+  from {
+    opacity: 0;
+    transform: perspective(900px) rotateY(-28deg) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(900px) rotateY(0) scale(1);
+  }
+}
+
+@keyframes vtCardOpen {
+  from {
+    opacity: 0;
+    transform: scale(0.9) rotate(-2deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes vtTechTransform {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+
+@keyframes vtDoorEnter {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vt-enter-book,
+  .vt-enter-card,
+  .vt-enter-tech,
+  .vt-enter-door {
+    animation: none;
+  }
+}
