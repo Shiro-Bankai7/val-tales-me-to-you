@@ -56,10 +56,11 @@ export function StoryPlayer({
   const template = getTemplateById(project.template_id);
   const isDoorTemplate = project.template_id === "door-reveal";
   const pages = useMemo(() => {
+    const rawPages = Array.isArray(project.pages_json) ? project.pages_json : [];
     if (hiddenUnlocked) {
-      return project.pages_json;
+      return rawPages;
     }
-    return project.pages_json.filter((page) => !page.secret);
+    return rawPages.filter((page) => !page.secret);
   }, [hiddenUnlocked, project.pages_json]);
 
   const selectedCharacterById = useMemo(() => {

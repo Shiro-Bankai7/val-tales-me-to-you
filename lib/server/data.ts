@@ -428,3 +428,48 @@ export async function getReactionSummary(slug: string) {
 
   return data ?? [];
 }
+
+export async function getCouponUsageCount(code: string) {
+  if (!hasServerEnv()) {
+    const store = getLocalStore();
+    let count = 0;
+    store.purchaseRefs.forEach((ref) => {
+      if (ref.startsWith(`COUPON_${code.toUpperCase()}_`)) {
+        count++;
+      }
+    });
+    return count;
+  }
+
+  const supabase = createServiceSupabaseClient();
+  const { count, error } = await supabase
+    .from("purchases")
+    .select("*", { count: "exact", head: true })
+    .like("provider_ref", `COUPON_${code.toUpperCase()}_%`);
+
+  if (error) {
+    throw error;
+  }
+  return count ?? 0;
+}
+
+export async function applyCoupon(projectId: string, code: string) {
+  const usageCount = await getCouponUsageCount(code);
+  const providerRef = `COUPON_${code.toUpperCase()}_${usageCount + 1}`;
+
+  // Mark project as premium
+  await markProjectPremium(projectId);
+
+  // Create or get published tale
+  const published = await createOrGetPublishedTale(projectId, true);
+
+  // Log purchase
+  await addPurchaseLog({
+    type: "premium",
+    providerRef,
+    amount: 0,
+    currency: "NGN"
+  });
+
+  return published;
+}
