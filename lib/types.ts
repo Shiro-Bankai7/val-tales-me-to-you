@@ -12,7 +12,12 @@ export type VibeId =
   | "rain-dance"
   | "playful"
   | "heartbreak"
-  | "nostalgia";
+  | "nostalgia"
+  | "me-and-u"
+  | "african-queen"
+  | "true-love"
+  | "assurance"
+  | "you";
 
 export type PurchaseType = "export" | "premium";
 

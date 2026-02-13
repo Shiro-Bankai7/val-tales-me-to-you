@@ -61,12 +61,14 @@ export const vibes: VibeTrack[] = [
     id: "romantic",
     label: "Romantic",
     trackUrl: "/music/romantic.mp3",
+    trackStartSeconds: 84,
     premium: true
   },
   {
     id: "soft",
     label: "Soft",
     trackUrl: "/music/soft.mp3",
+    trackStartSeconds: 84,
     premium: true
   },
   {
@@ -80,18 +82,56 @@ export const vibes: VibeTrack[] = [
     id: "playful",
     label: "Playful",
     trackUrl: "/music/playful.mp3",
+    trackStartSeconds: 84,
     premium: true
   },
   {
     id: "heartbreak",
     label: "Heartbreak",
     trackUrl: "/music/heartbreak.mp3",
+    trackStartSeconds: 84,
     premium: true
   },
   {
     id: "nostalgia",
     label: "Nostalgia",
     trackUrl: "/music/nostalgia.mp3",
+    trackStartSeconds: 84,
+    premium: true
+  },
+  {
+    id: "me-and-u",
+    label: "Me & U",
+    trackUrl: "/music/me-and-u.mp3",
+    trackStartSeconds: 84,
+    premium: true
+  },
+  {
+    id: "african-queen",
+    label: "African Queen",
+    trackUrl: "/music/african-queen.mp3",
+    trackStartSeconds: 84,
+    premium: true
+  },
+  {
+    id: "true-love",
+    label: "True Love",
+    trackUrl: "/music/true-love.mp3",
+    trackStartSeconds: 84,
+    premium: true
+  },
+  {
+    id: "assurance",
+    label: "Assurance",
+    trackUrl: "/music/assurance.mp3",
+    trackStartSeconds: 84,
+    premium: true
+  },
+  {
+    id: "you",
+    label: "You",
+    trackUrl: "/music/you.mp3",
+    trackStartSeconds: 84,
     premium: true
   }
 ];
