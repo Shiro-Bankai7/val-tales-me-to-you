@@ -120,6 +120,20 @@ async function persistLocalStore() {
   }
 }
 
+function parsePagesJson(raw: any): StoryPage[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 function createLocalDraftProject(payload: {
   templateId: TemplateId;
   vibe: VibeId;
@@ -245,15 +259,21 @@ export async function createDraftProject(payload: {
 export async function getProjectById(projectId: string) {
   if (shouldUseLocalStore()) {
     await ensureLocalStoreReady();
-    return getLocalStore().projects.get(projectId) ?? null;
+    const project = getLocalStore().projects.get(projectId) ?? null;
+    if (project) {
+      project.pages_json = parsePagesJson(project.pages_json);
+    }
+    return project;
   }
 
   const supabase = await getServiceSupabaseClient();
   const { data, error } = await supabase.from("projects").select("*").eq("id", projectId).single();
-  if (error) {
+  if (error || !data) {
     return null;
   }
-  return data as ProjectRecord;
+  const project = data as ProjectRecord;
+  project.pages_json = parsePagesJson(project.pages_json);
+  return project;
 }
 
 export async function updateProjectById(
@@ -356,7 +376,7 @@ export async function getPublishedBySlug(slug: string) {
     if (!published) {
       return null;
     }
-    const project = store.projects.get(published.project_id);
+    const project = await getProjectById(published.project_id);
     if (!project) {
       return null;
     }

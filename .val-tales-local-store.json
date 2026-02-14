@@ -103,6 +103,84 @@
         "created_at": "2026-02-13T23:09:23.790Z",
         "updated_at": "2026-02-14T00:24:08.718Z"
       }
+    ],
+    [
+      "Bsv2yVCiwDq04X",
+      {
+        "id": "Bsv2yVCiwDq04X",
+        "owner_id": null,
+        "template_id": "papyrus",
+        "vibe": "romantic",
+        "pages_json": [
+          {
+            "id": "sDayn5RapUM10a-HsnFcD",
+            "title": "",
+            "body": "Jules says: This project is NOT empty!",
+            "signature": "",
+            "highlightedNames": [
+              "Jules",
+              "This"
+            ]
+          }
+        ],
+        "character_refs": [],
+        "is_premium": false,
+        "created_at": "2026-02-14T01:44:45.378Z",
+        "updated_at": "2026-02-14T01:44:51.090Z"
+      }
+    ],
+    [
+      "vUsp6SYwS6ObE6",
+      {
+        "id": "vUsp6SYwS6ObE6",
+        "owner_id": null,
+        "template_id": "papyrus",
+        "vibe": "romantic",
+        "pages_json": [
+          {
+            "id": "tiAEGsf_6YdWlZTryVo10",
+            "title": "",
+            "body": "Jules says: This project is NOT empty!",
+            "signature": "",
+            "highlightedNames": [
+              "Jules",
+              "This"
+            ]
+          }
+        ],
+        "character_refs": [],
+        "is_premium": false,
+        "created_at": "2026-02-14T01:45:44.403Z",
+        "updated_at": "2026-02-14T01:45:48.057Z"
+      }
+    ],
+    [
+      "Q7YDMOZdgFd7Jr",
+      {
+        "id": "Q7YDMOZdgFd7Jr",
+        "owner_id": null,
+        "template_id": "love-card",
+        "vibe": "soft",
+        "pages_json": [
+          {
+            "id": "_JVvSld4Evd6_0vL9mjuG",
+            "title": "",
+            "body": "Jules says: This project is NOT empty and it is a Love Card!",
+            "signature": "",
+            "highlightedNames": [
+              "Jules",
+              "This",
+              "Love",
+              "Card",
+              "love"
+            ]
+          }
+        ],
+        "character_refs": [],
+        "is_premium": false,
+        "created_at": "2026-02-14T01:49:59.930Z",
+        "updated_at": "2026-02-14T01:50:02.991Z"
+      }
     ]
   ],
   "publishedByProjectId": [
