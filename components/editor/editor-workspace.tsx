@@ -200,7 +200,11 @@ export function EditorWorkspace({
       setNavigatingTo(target);
       try {
         await flushDraftSave(buildCurrentPayload());
-        router.push(destination);
+        const [pathname, query = ""] = destination.split("?");
+        const params = new URLSearchParams(query);
+        params.set("_r", Date.now().toString());
+        const nextQuery = params.toString();
+        router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname);
       } catch (error) {
         if (mountedRef.current) {
           setStatus((error as Error).message || "Save failed");

@@ -40,7 +40,7 @@ export function CheckoutPanel({
     }
 
     let mounted = true;
-    fetch(`/api/projects/${projectId}`)
+    fetch(`/api/projects/${projectId}`, { cache: "no-store" })
       .then((response) => response.json())
       .then((data: { project?: ProjectRecord }) => {
         if (!mounted || !data.project) return;

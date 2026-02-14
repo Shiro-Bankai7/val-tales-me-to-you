@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { type MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { characterPacks, getTemplateById, vibes } from "@/lib/templates";
 import type { ProjectRecord } from "@/lib/types";
@@ -40,6 +41,7 @@ export function StoryPlayer({
   slug?: string;
   exitHref?: string;
 }) {
+  const router = useRouter();
   const [started, setStarted] = useState(mode === "preview");
   const [index, setIndex] = useState(0);
   const [timerProgress, setTimerProgress] = useState(0);
@@ -360,12 +362,16 @@ export function StoryPlayer({
                 Back to Editor
               </Link>
             ) : null}
-            <Link
-              href={`/checkout?projectId=${project.id}`}
+            <button
+              type="button"
+              onClick={() => {
+                const params = new URLSearchParams({ projectId: project.id, _r: Date.now().toString() });
+                router.push(`/checkout?${params.toString()}`);
+              }}
               className="touch-btn rounded-full border border-[#cda79b] bg-[#bf978c] px-4 py-2.5 text-center text-sm font-semibold text-[#fff8f4] transition active:scale-[0.99]"
             >
               Publish
-            </Link>
+            </button>
           </div>
         </Card>
       ) : null}
