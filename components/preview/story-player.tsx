@@ -56,10 +56,21 @@ export function StoryPlayer({
   const narrationRef = useRef<HTMLAudioElement>(null);
   const trackStartAppliedRef = useRef<string | null>(null);
 
-  const template = getTemplateById(project.template_id);
+  const template = useMemo(() => getTemplateById(project.template_id), [project.template_id]);
   const isDoorTemplate = project.template_id === "door-reveal";
   const pages = useMemo(() => {
-    const rawPages = Array.isArray(project.pages_json) ? project.pages_json : [];
+    let rawPages: any[] = [];
+    if (Array.isArray(project.pages_json)) {
+      rawPages = project.pages_json;
+    } else if (typeof project.pages_json === "string") {
+      try {
+        rawPages = JSON.parse(project.pages_json);
+        if (!Array.isArray(rawPages)) rawPages = [];
+      } catch {
+        rawPages = [];
+      }
+    }
+
     if (hiddenUnlocked) {
       return rawPages;
     }
