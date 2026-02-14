@@ -367,15 +367,25 @@ export async function getPublishedBySlug(slug: string) {
   }
 
   const supabase = await getServiceSupabaseClient();
-  const { data, error } = await supabase
+  const { data: published, error } = await supabase
     .from("published_tales")
-    .select("*, projects(*)")
+    .select("*")
     .eq("slug", slug)
-    .single();
-  if (error) {
+    .maybeSingle();
+
+  if (error || !published) {
     return null;
   }
-  return data as (PublishedTaleRecord & { projects: ProjectRecord }) | null;
+
+  const project = await getProjectById(published.project_id);
+  if (!project) {
+    return null;
+  }
+
+  return {
+    ...published,
+    projects: project
+  } as PublishedTaleRecord & { projects: ProjectRecord };
 }
 
 export async function addPurchaseLog(payload: {
