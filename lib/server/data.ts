@@ -72,6 +72,26 @@ function shouldUseLocalStore() {
   return !hasServerEnv() && process.env.NODE_ENV !== "production";
 }
 
+function logLocalFallback(context: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.warn(`[val-tales] ${context}; using local JSON fallback: ${message}`);
+}
+
+function toProjectRecord(project: ProjectRecord): ProjectRecord {
+  return {
+    ...project,
+    pages_json: parsePagesJson(project.pages_json),
+    character_refs: Array.isArray(project.character_refs) ? project.character_refs : []
+  };
+}
+
+function toPublishedRecord(published: PublishedTaleRecord): PublishedTaleRecord {
+  return {
+    ...published,
+    narration_url: published.narration_url ?? null
+  };
+}
+
 function toLocalStoreSnapshot(store: LocalStore): LocalStoreSnapshot {
   return {
     projects: Array.from(store.projects.entries()),
@@ -216,161 +236,232 @@ function createLocalPublished(projectId: string, isPremium = false) {
   return published;
 }
 
+function setLocalProject(project: ProjectRecord) {
+  const store = getLocalStore();
+  const normalized = toProjectRecord(project);
+  store.projects.set(normalized.id, normalized);
+  return normalized;
+}
+
+function setLocalPublished(published: PublishedTaleRecord) {
+  const store = getLocalStore();
+  const normalized = toPublishedRecord(published);
+  store.publishedByProjectId.set(normalized.project_id, normalized);
+  store.publishedBySlug.set(normalized.slug, normalized);
+  return normalized;
+}
+
 export async function createDraftProject(payload: {
   templateId: TemplateId;
   vibe: VibeId;
   characterRefs?: string[];
   pages?: StoryPage[];
 }) {
+  await ensureLocalStoreReady();
+
   if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
     const project = createLocalDraftProject(payload);
     await persistLocalStore();
     return project;
   }
 
-  const supabase = await getServiceSupabaseClient();
-  const insertPayload = {
-    template_id: payload.templateId,
-    vibe: payload.vibe,
-    pages_json:
-      payload.pages ?? [
-        {
-          id: nanoid(),
-          title: "",
-          body: "",
-          signature: "",
-          characterId: payload.characterRefs?.[0]
-        }
-      ],
-    character_refs: payload.characterRefs ?? [],
-    is_premium: false,
-    created_at: now(),
-    updated_at: now()
-  };
+  try {
+    const supabase = await getServiceSupabaseClient();
+    const insertPayload = {
+      template_id: payload.templateId,
+      vibe: payload.vibe,
+      pages_json:
+        payload.pages ?? [
+          {
+            id: nanoid(),
+            title: "",
+            body: "",
+            signature: "",
+            characterId: payload.characterRefs?.[0]
+          }
+        ],
+      character_refs: payload.characterRefs ?? [],
+      is_premium: false,
+      created_at: now(),
+      updated_at: now()
+    };
 
-  const { data, error } = await supabase.from("projects").insert(insertPayload).select("*").single();
-  if (error) {
-    throw error;
+    const { data, error } = await supabase.from("projects").insert(insertPayload).select("*").single();
+    if (error || !data) {
+      throw error ?? new Error("Failed to create project.");
+    }
+    const project = setLocalProject(data as ProjectRecord);
+    await persistLocalStore();
+    return project;
+  } catch (error) {
+    logLocalFallback("createDraftProject failed in Supabase", error);
+    const project = createLocalDraftProject(payload);
+    await persistLocalStore();
+    return project;
   }
-  return data as ProjectRecord;
 }
 
 export async function getProjectById(projectId: string) {
+  await ensureLocalStoreReady();
+
   if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
     const project = getLocalStore().projects.get(projectId) ?? null;
-    if (project) {
-      project.pages_json = parsePagesJson(project.pages_json);
-    }
-    return project;
+    return project ? toProjectRecord(project) : null;
   }
 
-  const supabase = await getServiceSupabaseClient();
-  const { data, error } = await supabase.from("projects").select("*").eq("id", projectId).single();
-  if (error || !data) {
-    return null;
+  try {
+    const supabase = await getServiceSupabaseClient();
+    const { data, error } = await supabase.from("projects").select("*").eq("id", projectId).single();
+    if (error || !data) {
+      const fallback = getLocalStore().projects.get(projectId) ?? null;
+      return fallback ? toProjectRecord(fallback) : null;
+    }
+    const project = setLocalProject(data as ProjectRecord);
+    await persistLocalStore();
+    return project;
+  } catch (error) {
+    logLocalFallback(`getProjectById(${projectId}) failed in Supabase`, error);
+    const fallback = getLocalStore().projects.get(projectId) ?? null;
+    return fallback ? toProjectRecord(fallback) : null;
   }
-  const project = data as ProjectRecord;
-  project.pages_json = parsePagesJson(project.pages_json);
-  return project;
 }
 
 export async function updateProjectById(
   projectId: string,
   updates: Partial<Pick<ProjectRecord, "template_id" | "vibe" | "pages_json" | "character_refs" | "is_premium">>
 ) {
+  await ensureLocalStoreReady();
+
   if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
     const project = updateLocalProject(projectId, updates);
     await persistLocalStore();
     return project;
   }
 
-  const supabase = await getServiceSupabaseClient();
-  const updatePayload = Object.fromEntries(
-    Object.entries({
-      ...updates,
-      updated_at: now()
-    }).filter(([, value]) => value !== undefined)
-  );
-  const { data, error } = await supabase
-    .from("projects")
-    .update(updatePayload)
-    .eq("id", projectId)
-    .select("*")
-    .single();
-  if (error) {
-    throw error;
+  try {
+    const supabase = await getServiceSupabaseClient();
+    const updatePayload = Object.fromEntries(
+      Object.entries({
+        ...updates,
+        updated_at: now()
+      }).filter(([, value]) => value !== undefined)
+    );
+    const { data, error } = await supabase
+      .from("projects")
+      .update(updatePayload)
+      .eq("id", projectId)
+      .select("*")
+      .single();
+    if (error || !data) {
+      throw error ?? new Error("Failed to update project.");
+    }
+    const project = setLocalProject(data as ProjectRecord);
+    await persistLocalStore();
+    return project;
+  } catch (error) {
+    logLocalFallback(`updateProjectById(${projectId}) failed in Supabase`, error);
+    const project = updateLocalProject(projectId, updates);
+    await persistLocalStore();
+    return project;
   }
-  return data as ProjectRecord;
 }
 
 export async function getPublishedByProject(projectId: string) {
+  await ensureLocalStoreReady();
+
   if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
-    return getLocalStore().publishedByProjectId.get(projectId) ?? null;
+    const published = getLocalStore().publishedByProjectId.get(projectId) ?? null;
+    return published ? toPublishedRecord(published) : null;
   }
 
-  const supabase = await getServiceSupabaseClient();
-  const { data } = await supabase
-    .from("published_tales")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("published_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data as PublishedTaleRecord | null;
+  try {
+    const supabase = await getServiceSupabaseClient();
+    const { data } = await supabase
+      .from("published_tales")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("published_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!data) {
+      const fallback = getLocalStore().publishedByProjectId.get(projectId) ?? null;
+      return fallback ? toPublishedRecord(fallback) : null;
+    }
+
+    const published = setLocalPublished(data as PublishedTaleRecord);
+    await persistLocalStore();
+    return published;
+  } catch (error) {
+    logLocalFallback(`getPublishedByProject(${projectId}) failed in Supabase`, error);
+    const fallback = getLocalStore().publishedByProjectId.get(projectId) ?? null;
+    return fallback ? toPublishedRecord(fallback) : null;
+  }
 }
 
 export async function createOrGetPublishedTale(projectId: string, isPremium = false) {
+  await ensureLocalStoreReady();
+
   if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
     const published = createLocalPublished(projectId, isPremium);
     await persistLocalStore();
     return published;
   }
 
-  const existing = await getPublishedByProject(projectId);
-  if (existing) {
-    if (isPremium && !existing.is_premium) {
-      const supabase = await getServiceSupabaseClient();
-      const { data, error } = await supabase
-        .from("published_tales")
-        .update({ is_premium: true })
-        .eq("id", existing.id)
-        .select("*")
-        .single();
-      if (error) {
-        throw error;
+  try {
+    const existing = await getPublishedByProject(projectId);
+    if (existing) {
+      if (isPremium && !existing.is_premium) {
+        const supabase = await getServiceSupabaseClient();
+        const { data, error } = await supabase
+          .from("published_tales")
+          .update({ is_premium: true })
+          .eq("id", existing.id)
+          .select("*")
+          .single();
+        if (error || !data) {
+          throw error ?? new Error("Failed to upgrade published tale.");
+        }
+        const upgraded = setLocalPublished(data as PublishedTaleRecord);
+        await persistLocalStore();
+        return upgraded;
       }
-      return data as PublishedTaleRecord;
+      const syncedExisting = setLocalPublished(existing);
+      await persistLocalStore();
+      return syncedExisting;
     }
-    return existing;
-  }
 
-  const supabase = await getServiceSupabaseClient();
-  const slug = nanoid(14);
-  const { data, error } = await supabase
-    .from("published_tales")
-    .insert({
-      project_id: projectId,
-      slug,
-      is_premium: isPremium,
-      published_at: now()
-    })
-    .select("*")
-    .single();
+    const supabase = await getServiceSupabaseClient();
+    const slug = nanoid(14);
+    const { data, error } = await supabase
+      .from("published_tales")
+      .insert({
+        project_id: projectId,
+        slug,
+        is_premium: isPremium,
+        published_at: now()
+      })
+      .select("*")
+      .single();
 
-  if (error) {
-    throw error;
+    if (error || !data) {
+      throw error ?? new Error("Failed to publish tale.");
+    }
+    const published = setLocalPublished(data as PublishedTaleRecord);
+    await persistLocalStore();
+    return published;
+  } catch (error) {
+    logLocalFallback(`createOrGetPublishedTale(${projectId}) failed in Supabase`, error);
+    const published = createLocalPublished(projectId, isPremium);
+    await persistLocalStore();
+    return published;
   }
-  return data as PublishedTaleRecord;
 }
 
 export async function getPublishedBySlug(slug: string) {
+  await ensureLocalStoreReady();
+
   if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = store.publishedBySlug.get(slug);
     if (!published) {
@@ -381,31 +472,60 @@ export async function getPublishedBySlug(slug: string) {
       return null;
     }
     return {
-      ...published,
+      ...toPublishedRecord(published),
       projects: project
     } as PublishedTaleRecord & { projects: ProjectRecord };
   }
 
-  const supabase = await getServiceSupabaseClient();
-  const { data: published, error } = await supabase
-    .from("published_tales")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
+  try {
+    const supabase = await getServiceSupabaseClient();
+    const { data: published, error } = await supabase
+      .from("published_tales")
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle();
 
-  if (error || !published) {
-    return null;
+    if (error || !published) {
+      const localPublished = getLocalStore().publishedBySlug.get(slug);
+      if (!localPublished) {
+        return null;
+      }
+      const localProject = await getProjectById(localPublished.project_id);
+      if (!localProject) {
+        return null;
+      }
+      return {
+        ...toPublishedRecord(localPublished),
+        projects: localProject
+      } as PublishedTaleRecord & { projects: ProjectRecord };
+    }
+
+    const normalizedPublished = setLocalPublished(published as PublishedTaleRecord);
+    await persistLocalStore();
+    const project = await getProjectById(normalizedPublished.project_id);
+    if (!project) {
+      return null;
+    }
+
+    return {
+      ...normalizedPublished,
+      projects: project
+    } as PublishedTaleRecord & { projects: ProjectRecord };
+  } catch (error) {
+    logLocalFallback(`getPublishedBySlug(${slug}) failed in Supabase`, error);
+    const localPublished = getLocalStore().publishedBySlug.get(slug);
+    if (!localPublished) {
+      return null;
+    }
+    const localProject = await getProjectById(localPublished.project_id);
+    if (!localProject) {
+      return null;
+    }
+    return {
+      ...toPublishedRecord(localPublished),
+      projects: localProject
+    } as PublishedTaleRecord & { projects: ProjectRecord };
   }
-
-  const project = await getProjectById(published.project_id);
-  if (!project) {
-    return null;
-  }
-
-  return {
-    ...published,
-    projects: project
-  } as PublishedTaleRecord & { projects: ProjectRecord };
 }
 
 export async function addPurchaseLog(payload: {
@@ -414,25 +534,33 @@ export async function addPurchaseLog(payload: {
   amount: number;
   currency: string;
 }) {
+  await ensureLocalStoreReady();
+
   if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
     getLocalStore().purchaseRefs.add(payload.providerRef);
     await persistLocalStore();
     return;
   }
 
-  const supabase = await getServiceSupabaseClient();
-  const { error } = await supabase.from("purchases").insert({
-    owner_id: null,
-    type: payload.type,
-    provider_ref: payload.providerRef,
-    amount: payload.amount,
-    currency: payload.currency,
-    created_at: now()
-  });
-  if (error && !String(error.message).toLowerCase().includes("duplicate")) {
-    throw error;
+  try {
+    const supabase = await getServiceSupabaseClient();
+    const { error } = await supabase.from("purchases").insert({
+      owner_id: null,
+      type: payload.type,
+      provider_ref: payload.providerRef,
+      amount: payload.amount,
+      currency: payload.currency,
+      created_at: now()
+    });
+    if (error && !String(error.message).toLowerCase().includes("duplicate")) {
+      throw error;
+    }
+  } catch (error) {
+    logLocalFallback("addPurchaseLog failed in Supabase", error);
   }
+
+  getLocalStore().purchaseRefs.add(payload.providerRef);
+  await persistLocalStore();
 }
 
 export async function markProjectPremium(projectId: string) {
@@ -440,8 +568,9 @@ export async function markProjectPremium(projectId: string) {
 }
 
 export async function saveNarrationUrl(projectId: string, narrationUrl: string) {
+  await ensureLocalStoreReady();
+
   if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = createLocalPublished(projectId, true);
     const nextPublished: PublishedTaleRecord = {
@@ -456,32 +585,46 @@ export async function saveNarrationUrl(projectId: string, narrationUrl: string) 
     return;
   }
 
-  const supabase = await getServiceSupabaseClient();
-  const published = await createOrGetPublishedTale(projectId, true);
-  const { error } = await supabase
-    .from("published_tales")
-    .update({
-      narration_url: narrationUrl,
-      is_premium: true
-    })
-    .eq("id", published.id);
+  try {
+    const supabase = await getServiceSupabaseClient();
+    const published = await createOrGetPublishedTale(projectId, true);
+    const { error } = await supabase
+      .from("published_tales")
+      .update({
+        narration_url: narrationUrl,
+        is_premium: true
+      })
+      .eq("id", published.id);
 
-  if (error) {
-    throw error;
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    logLocalFallback(`saveNarrationUrl(${projectId}) failed in Supabase`, error);
   }
+
+  const store = getLocalStore();
+  const published = createLocalPublished(projectId, true);
+  const nextPublished: PublishedTaleRecord = {
+    ...published,
+    narration_url: narrationUrl,
+    is_premium: true
+  };
+  store.publishedByProjectId.set(projectId, nextPublished);
+  store.publishedBySlug.set(nextPublished.slug, nextPublished);
+  await markProjectPremium(projectId);
+  await persistLocalStore();
 }
 
 export async function addReaction(payload: ReactionPayload) {
-  if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
-    const store = getLocalStore();
-    const published = store.publishedBySlug.get(payload.taleSlug);
-    if (!published) {
-      throw new Error("Tale not found.");
-    }
-    const existing = store.reactionsByPublishedId.get(published.id) ?? [];
+  await ensureLocalStoreReady();
+
+  const store = getLocalStore();
+  const localPublished = store.publishedBySlug.get(payload.taleSlug);
+  const upsertLocalReaction = (publishedId: string) => {
+    const existing = store.reactionsByPublishedId.get(publishedId) ?? [];
     store.reactionsByPublishedId.set(
-      published.id,
+      publishedId,
       [
         {
           reaction: payload.reaction,
@@ -491,37 +634,61 @@ export async function addReaction(payload: ReactionPayload) {
         ...existing
       ].slice(0, 50)
     );
+  };
+
+  if (shouldUseLocalStore()) {
+    if (!localPublished) {
+      throw new Error("Tale not found.");
+    }
+    upsertLocalReaction(localPublished.id);
     await persistLocalStore();
     return { ok: true };
   }
 
-  const supabase = await getServiceSupabaseClient();
-  const { data: published, error: publishedError } = await supabase
-    .from("published_tales")
-    .select("id")
-    .eq("slug", payload.taleSlug)
-    .single();
+  let publishedId = localPublished?.id;
 
-  if (publishedError || !published) {
+  try {
+    const supabase = await getServiceSupabaseClient();
+    const { data: published, error: publishedError } = await supabase
+      .from("published_tales")
+      .select("*")
+      .eq("slug", payload.taleSlug)
+      .single();
+
+    if (publishedError || !published) {
+      throw new Error("Tale not found.");
+    }
+
+    const normalizedPublished = setLocalPublished(published as PublishedTaleRecord);
+    publishedId = normalizedPublished.id;
+    const { error } = await supabase.from("reactions").insert({
+      published_tale_id: normalizedPublished.id,
+      reaction: payload.reaction,
+      reply_text: payload.replyText,
+      created_at: now()
+    });
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    logLocalFallback(`addReaction(${payload.taleSlug}) failed in Supabase`, error);
+    if (!publishedId) {
+      throw new Error("Tale not found.");
+    }
+  }
+
+  if (!publishedId) {
     throw new Error("Tale not found.");
   }
-
-  const { error } = await supabase.from("reactions").insert({
-    published_tale_id: published.id,
-    reaction: payload.reaction,
-    reply_text: payload.replyText,
-    created_at: now()
-  });
-  if (error) {
-    throw error;
-  }
-
+  upsertLocalReaction(publishedId);
+  await persistLocalStore();
   return { ok: true };
 }
 
 export async function getReactionSummary(slug: string) {
+  await ensureLocalStoreReady();
+
   if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
     const store = getLocalStore();
     const published = store.publishedBySlug.get(slug);
     if (!published) {
@@ -530,30 +697,48 @@ export async function getReactionSummary(slug: string) {
     return store.reactionsByPublishedId.get(published.id) ?? [];
   }
 
-  const supabase = await getServiceSupabaseClient();
-  const { data: published } = await supabase
-    .from("published_tales")
-    .select("id")
-    .eq("slug", slug)
-    .maybeSingle();
+  try {
+    const supabase = await getServiceSupabaseClient();
+    const { data: published } = await supabase
+      .from("published_tales")
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle();
 
-  if (!published) {
-    return [];
+    if (!published) {
+      const localPublished = getLocalStore().publishedBySlug.get(slug);
+      if (!localPublished) {
+        return [];
+      }
+      return getLocalStore().reactionsByPublishedId.get(localPublished.id) ?? [];
+    }
+
+    const normalizedPublished = setLocalPublished(published as PublishedTaleRecord);
+    const { data } = await supabase
+      .from("reactions")
+      .select("reaction, reply_text, created_at")
+      .eq("published_tale_id", normalizedPublished.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    const result = data ?? [];
+    getLocalStore().reactionsByPublishedId.set(normalizedPublished.id, result);
+    await persistLocalStore();
+    return result;
+  } catch (error) {
+    logLocalFallback(`getReactionSummary(${slug}) failed in Supabase`, error);
+    const localPublished = getLocalStore().publishedBySlug.get(slug);
+    if (!localPublished) {
+      return [];
+    }
+    return getLocalStore().reactionsByPublishedId.get(localPublished.id) ?? [];
   }
-
-  const { data } = await supabase
-    .from("reactions")
-    .select("reaction, reply_text, created_at")
-    .eq("published_tale_id", published.id)
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  return data ?? [];
 }
 
 export async function getCouponUsageCount(code: string) {
+  await ensureLocalStoreReady();
+
   if (shouldUseLocalStore()) {
-    await ensureLocalStoreReady();
     const store = getLocalStore();
     let count = 0;
     store.purchaseRefs.forEach((ref) => {
@@ -564,16 +749,28 @@ export async function getCouponUsageCount(code: string) {
     return count;
   }
 
-  const supabase = await getServiceSupabaseClient();
-  const { count, error } = await supabase
-    .from("purchases")
-    .select("*", { count: "exact", head: true })
-    .like("provider_ref", `COUPON_${code.toUpperCase()}_%`);
+  try {
+    const supabase = await getServiceSupabaseClient();
+    const { count, error } = await supabase
+      .from("purchases")
+      .select("*", { count: "exact", head: true })
+      .like("provider_ref", `COUPON_${code.toUpperCase()}_%`);
 
-  if (error) {
-    throw error;
+    if (error) {
+      throw error;
+    }
+    return count ?? 0;
+  } catch (error) {
+    logLocalFallback(`getCouponUsageCount(${code}) failed in Supabase`, error);
+    const store = getLocalStore();
+    let count = 0;
+    store.purchaseRefs.forEach((ref) => {
+      if (ref.startsWith(`COUPON_${code.toUpperCase()}_`)) {
+        count++;
+      }
+    });
+    return count;
   }
-  return count ?? 0;
 }
 
 export async function applyCoupon(projectId: string, code: string) {
