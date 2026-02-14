@@ -181,6 +181,99 @@
         "created_at": "2026-02-14T01:49:59.930Z",
         "updated_at": "2026-02-14T01:50:02.991Z"
       }
+    ],
+    [
+      "xK2fola6SlideA",
+      {
+        "id": "xK2fola6SlideA",
+        "owner_id": null,
+        "template_id": "love-card",
+        "vibe": "fola-you",
+        "pages_json": [
+          {
+            "id": "slide1Kitty2FullSizeA",
+            "title": "",
+            "body": "You are the calm part of every loud day.",
+            "signature": "",
+            "highlightedNames": [
+              "You"
+            ],
+            "characterId": "/characters/stickers/cnt2.jpg",
+            "stickerX": 50,
+            "stickerY": 54,
+            "stickerSize": 40
+          },
+          {
+            "id": "slide2KittySetBvibeA",
+            "title": "",
+            "body": "I still smile when your name pops in my head.",
+            "signature": "",
+            "highlightedNames": [
+              "I"
+            ],
+            "characterId": "/characters/stickers/cnt8.jpg",
+            "stickerX": 24,
+            "stickerY": 78,
+            "stickerSize": 26
+          },
+          {
+            "id": "slide3KittySetCvibeA",
+            "title": "",
+            "body": "This little story is my soft way of saying I miss you.",
+            "signature": "",
+            "highlightedNames": [
+              "This"
+            ],
+            "characterId": "/characters/stickers/pnt10.png",
+            "stickerX": 78,
+            "stickerY": 24,
+            "stickerSize": 24
+          },
+          {
+            "id": "slide4KittySetDvibeA",
+            "title": "",
+            "body": "No noise, no pressure, just this feeling staying true.",
+            "signature": "",
+            "highlightedNames": [
+              "No"
+            ],
+            "characterId": "/characters/stickers/ant10.jpg",
+            "stickerX": 79,
+            "stickerY": 58,
+            "stickerSize": 25
+          },
+          {
+            "id": "slide5KittySetEvibeA",
+            "title": "",
+            "body": "If love had a soundtrack, this would be our page.",
+            "signature": "",
+            "highlightedNames": [
+              "If"
+            ],
+            "characterId": "/characters/stickers/cnt10.jpg",
+            "stickerX": 22,
+            "stickerY": 80,
+            "stickerSize": 24
+          },
+          {
+            "id": "slide6KittySetFvibeA",
+            "title": "",
+            "body": "Simple line: it has always been you.",
+            "signature": "From me",
+            "highlightedNames": [
+              "Simple"
+            ],
+            "characterId": "/characters/stickers/pnt2.jpg",
+            "stickerX": 76,
+            "stickerY": 79,
+            "stickerSize": 24
+          }
+        ],
+        "character_refs": [],
+        "is_premium": true,
+        "created_at": "2026-02-14T03:38:00.000Z",
+        "updated_at": "2026-02-14T03:38:00.000Z"
+      }
     ]
   ],
   "publishedByProjectId": [
@@ -194,6 +287,17 @@
         "narration_url": null,
         "published_at": "2026-02-14T00:24:08.728Z"
       }
+    ],
+    [
+      "xK2fola6SlideA",
+      {
+        "id": "pubKitty2Fola6",
+        "project_id": "xK2fola6SlideA",
+        "slug": "kitty2-fola6-demo",
+        "is_premium": true,
+        "narration_url": null,
+        "published_at": "2026-02-14T03:38:00.000Z"
+      }
     ]
   ],
   "publishedBySlug": [
@@ -206,6 +310,17 @@
         "is_premium": true,
         "narration_url": null,
         "published_at": "2026-02-14T00:24:08.728Z"
+      }
+    ],
+    [
+      "kitty2-fola6-demo",
+      {
+        "id": "pubKitty2Fola6",
+        "project_id": "xK2fola6SlideA",
+        "slug": "kitty2-fola6-demo",
+        "is_premium": true,
+        "narration_url": null,
+        "published_at": "2026-02-14T03:38:00.000Z"
       }
     ]
   ],
