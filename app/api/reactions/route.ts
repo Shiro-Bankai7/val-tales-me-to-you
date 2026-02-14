@@ -1,6 +1,21 @@
 import { NextResponse } from "next/server";
-import { addReaction } from "@/lib/server/data";
+import { addReaction, getReactionSummary } from "@/lib/server/data";
 import type { ReactionPayload } from "@/lib/types";
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const taleSlug = searchParams.get("taleSlug")?.trim();
+    if (!taleSlug) {
+      return NextResponse.json({ error: "taleSlug is required." }, { status: 400 });
+    }
+
+    const reactions = await getReactionSummary(taleSlug);
+    return NextResponse.json({ reactions });
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message, reactions: [] }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   try {

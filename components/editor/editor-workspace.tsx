@@ -34,6 +34,8 @@ export function EditorWorkspace({
   const [status, setStatus] = useState("Draft synced");
   const [narrationStatus, setNarrationStatus] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
+  const [reactionsLoading, setReactionsLoading] = useState(false);
+  const [reactions, setReactions] = useState<Array<{ reaction: string; reply_text?: string; created_at: string }>>([]);
   const [pageIndex, setPageIndex] = useState(0);
   const [openTemplateModal, setOpenTemplateModal] = useState(false);
   const [openStickerModal, setOpenStickerModal] = useState(false);
@@ -77,6 +79,14 @@ export function EditorWorkspace({
   );
 
   const serializePayload = useCallback((payload: ProjectSavePayload) => JSON.stringify(payload), []);
+  const buildCurrentPayload = useCallback(
+    (): ProjectSavePayload => ({
+      templateId,
+      vibe,
+      pages
+    }),
+    [templateId, vibe, pages]
+  );
 
   const saveProject = useCallback(
     async (payload: ProjectSavePayload, keepalive = false) => {
@@ -152,10 +162,14 @@ export function EditorWorkspace({
     }
   }, [saveProject, serializePayload]);
 
-  const flushDraftSave = useCallback(async () => {
+  const flushDraftSave = useCallback(async (forcedPayload?: ProjectSavePayload) => {
     if (saveDebounceRef.current) {
       clearTimeout(saveDebounceRef.current);
       saveDebounceRef.current = null;
+    }
+
+    if (forcedPayload) {
+      latestPayloadRef.current = forcedPayload;
     }
 
     saveQueuedRef.current = true;
@@ -185,7 +199,7 @@ export function EditorWorkspace({
     async (destination: string, target: "preview" | "checkout") => {
       setNavigatingTo(target);
       try {
-        await flushDraftSave();
+        await flushDraftSave(buildCurrentPayload());
         router.push(destination);
       } catch (error) {
         if (mountedRef.current) {
@@ -197,7 +211,7 @@ export function EditorWorkspace({
         }
       }
     },
-    [flushDraftSave, router]
+    [buildCurrentPayload, flushDraftSave, router]
   );
 
   useEffect(() => {
@@ -373,6 +387,39 @@ export function EditorWorkspace({
       setTimeout(() => setCopyStatus(""), 1800);
     }
   }
+
+  const loadReactions = useCallback(async () => {
+    if (!exportedSlug) {
+      setReactions([]);
+      return;
+    }
+
+    setReactionsLoading(true);
+    try {
+      const response = await fetch(`/api/reactions?taleSlug=${encodeURIComponent(exportedSlug)}`, {
+        cache: "no-store"
+      });
+      const data = (await response.json()) as {
+        reactions?: Array<{ reaction: string; reply_text?: string; created_at: string }>;
+      };
+      setReactions(Array.isArray(data.reactions) ? data.reactions : []);
+    } finally {
+      setReactionsLoading(false);
+    }
+  }, [exportedSlug]);
+
+  useEffect(() => {
+    if (!exportedSlug) {
+      setReactions([]);
+      return;
+    }
+
+    void loadReactions();
+    const interval = window.setInterval(() => {
+      void loadReactions();
+    }, 20000);
+    return () => window.clearInterval(interval);
+  }, [exportedSlug, loadReactions]);
 
   const palette = [
     "#ffffff",
@@ -640,6 +687,33 @@ export function EditorWorkspace({
             <p className="text-[11px] text-[#8a6a61]">Publish to unlock link + copy.</p>
           )}
           {copyStatus ? <p className="text-[11px] text-[#8a6a61]">{copyStatus}</p> : null}
+          {exportedSlug ? (
+            <div className="space-y-1 rounded-xl border border-[#d9beb4] bg-[#fbf2ee] p-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-[#7a5a52]">Reactable Inbox</p>
+                <button
+                  type="button"
+                  onClick={() => void loadReactions()}
+                  className="text-[11px] text-[#7a5a52] underline"
+                  disabled={reactionsLoading}
+                >
+                  {reactionsLoading ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
+              {reactions.length ? (
+                <div className="space-y-1">
+                  {reactions.slice(0, 8).map((item) => (
+                    <p key={`${item.created_at}-${item.reaction}`} className="text-[11px] text-[#6f5049]">
+                      {item.reaction}
+                      {item.reply_text ? ` - ${item.reply_text}` : ""}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-[#8a6a61]">No reactions yet.</p>
+              )}
+            </div>
+          ) : null}
 
           {isPremium ? (
             <Button variant="secondary" className="py-2 text-xs" onClick={() => void generateNarration()}>

@@ -221,6 +221,15 @@ export function StoryPlayer({
     trackStartAppliedRef.current = key;
   }
 
+  function handleStart() {
+    setStarted(true);
+    if (!musicOn) return;
+    const audio = bgAudioRef.current;
+    if (!audio) return;
+    applyTrackStartIfNeeded();
+    void audio.play().catch(() => {});
+  }
+
   return (
     <div className={cn(mode === "public" ? "space-y-0" : "space-y-4")}>
       {!started ? (
@@ -237,7 +246,7 @@ export function StoryPlayer({
             {template.startInteractionIcon ? `${template.startInteractionIcon} ` : ""}
             {template.startInteractionLabel}
           </p>
-          <Button onClick={() => setStarted(true)}>Start</Button>
+          <Button onClick={handleStart}>Start</Button>
         </Card>
       ) : null}
 
