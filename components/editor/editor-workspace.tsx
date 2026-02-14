@@ -229,17 +229,27 @@ export function EditorWorkspace({
   }, []);
 
   useEffect(() => {
+    let safePages = project.pages_json;
+    if (typeof safePages === "string") {
+      try {
+        safePages = JSON.parse(safePages);
+      } catch {
+        safePages = [];
+      }
+    }
+    if (!Array.isArray(safePages)) safePages = [];
+
     hydrateProject({
       projectId: project.id,
       templateId: project.template_id,
       vibe: project.vibe,
-      pages: project.pages_json,
+      pages: safePages,
       isPremium: project.is_premium
     });
     const payload: ProjectSavePayload = {
       templateId: project.template_id,
       vibe: project.vibe,
-      pages: project.pages_json
+      pages: safePages
     };
     latestPayloadRef.current = payload;
     lastSavedPayloadRef.current = serializePayload(payload);
